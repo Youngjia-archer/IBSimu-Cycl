@@ -2,7 +2,7 @@
  *  \brief Poisson equation problem for solving electric potential.
  */
 
-/* Copyright (c) 2005-2013,2017,2021 Taneli Kalvas. All rights reserved.
+/* Copyright (c) 2005-2013,2017,2021,2025 Taneli Kalvas. All rights reserved.
  *
  * You can redistribute this software and/or modify it under the terms
  * of the GNU General Public License as published by the Free Software
@@ -463,7 +463,9 @@ public:
      *  ion extraction.
      *
      *  The shielding function
-     *  \f[ S=\frac{1}{2} \cdot \left[ 1 + \tanh\left( \frac{\phi-\phi_M}{T_M} \right)\right]
+     *
+     *  S=0.5*[ 1 + tanh( phi-phi_M/T_M) ]
+     *
      *  multiplies the charge density from ray tracing to produce the 
      *  compensating effect of the plasma.
      */
