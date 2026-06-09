@@ -2,7 +2,7 @@
  *  \brief %Particle databases
  */
 
-/* Copyright (c) 2005-2015 Taneli Kalvas. All rights reserved.
+/* Copyright (c) 2005-2015,2026 Taneli Kalvas. All rights reserved.
  *
  * You can redistribute this software and/or modify it under the terms
  * of the GNU General Public License as published by the Free Software
@@ -54,6 +54,8 @@
 
 
 /*! \brief Trajectory handler callback.
+ *
+ *  Called for every mesh intersection point.
  */
 class TrajectoryHandlerCallback {
 public:
@@ -62,7 +64,39 @@ public:
      */
     virtual ~TrajectoryHandlerCallback() {}
 
+    /*! \brief Callback for the trajectory handler callback.
+     *
+     *  Called for every mesh intersection point. The \a particle
+     *  intersection is at \a xcur. So far, the particle iterator has
+     *  calculated the particle to \a xend. In case particle is
+     *  killed, xend can be modified.
+     */
     virtual void operator()( ParticleBase *particle, ParticlePBase *xcur, ParticlePBase *xend ) = 0;
+};
+
+
+/*! \brief Another trajectory handler callback.
+ *
+ *  Called for every mesh cell the particle travels through.
+ */
+class TrajectoryHandlerCallback2 {
+public:
+
+    /*! \brief Virtual destructor.
+     */
+    virtual ~TrajectoryHandlerCallback2() {}
+
+    /*! \brief Callback for the trajectory handler callback.
+     *
+     *  Called for every mesh cell the particle travels through. The
+     *  \a particle enters the cell at \a x1 and exits at \a x2. If
+     *  the particle is created in the cell \a x1 might not be on the
+     *  cell boundary. If the particle gets killed in the cell \a x2
+     *  might not be on the cell boundary. So far, the particle iterator has
+     *  calculated the particle to \a xend. In case particle is
+     *  killed, xend can be modified.
+     */
+    virtual void operator()( ParticleBase *particle, const ParticlePBase *x1, const ParticlePBase *x2, ParticlePBase *xend ) = 0;
 };
 
 
@@ -258,6 +292,10 @@ public:
     /*! \brief Set trajectory handler callback. 
      */
     void set_trajectory_handler_callback( TrajectoryHandlerCallback *thand_cb );
+
+    /*! \brief Set trajectory handler callback. 
+     */
+    void set_trajectory_handler_callback2( TrajectoryHandlerCallback2 *thand_cb2 );
 
     /*! \brief Set trajectory end callback. 
      */

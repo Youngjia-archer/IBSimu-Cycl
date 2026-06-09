@@ -2,7 +2,7 @@
  *  \brief %Particle and particle point objects
  */
 
-/* Copyright (c) 2005-2012,2015 Taneli Kalvas. All rights reserved.
+/* Copyright (c) 2005-2012,2015,2026 Taneli Kalvas. All rights reserved.
  *
  * You can redistribute this software and/or modify it under the terms
  * of the GNU General Public License as published by the Free Software
@@ -74,7 +74,7 @@ enum particle_status_e {
     PARTICLE_COLL,
     PARTICLE_BADDEF,
     PARTICLE_TIME,
-    PARTICLE_NSTP 
+    PARTICLE_NSTP
 };
 
 

@@ -2,7 +2,7 @@
  *  \brief Particle database implementation
  */
 
-/* Copyright (c) 2005-2013,2015,2022 Taneli Kalvas. All rights reserved.
+/* Copyright (c) 2005-2013,2015,2022,2026 Taneli Kalvas. All rights reserved.
  *
  * You can redistribute this software and/or modify it under the terms
  * of the GNU General Public License as published by the Free Software
@@ -80,6 +80,7 @@ protected:
 
     const CallbackFunctorD_V  *_bsup_cb;      /*!< \brief Location dependent magnetic field suppression. */
     TrajectoryHandlerCallback *_thand_cb;     /*!< \brief Trajectory handler callback. */
+    TrajectoryHandlerCallback2 *_thand_cb2;     /*!< \brief Trajectory handler callback 2. */
     TrajectoryEndCallback     *_tend_cb;      /*!< \brief Trajectory collision callback. */
     TrajectorySurfaceCollisionCallback *_tsur_cb;    /*!< \brief Trajectory surface collision callback. */
     ParticleDataBase          *_pdb;          /*!< \brief Particle database pointer. */
@@ -109,6 +110,8 @@ public:
     void set_bfield_suppression( const CallbackFunctorD_V *functor );
 
     void set_trajectory_handler_callback( TrajectoryHandlerCallback *thand_cb );
+
+    void set_trajectory_handler_callback2( TrajectoryHandlerCallback2 *thand_cb2 );
 
     void set_trajectory_end_callback( TrajectoryEndCallback *tend_cb );
 
@@ -690,6 +693,7 @@ public:
 							   _save_points, _trajdiv, _mirror, &scharge, 
 							   &scharge_mutex, &efield, &bfield, &_geom ) );
 	    iterators[a]->set_trajectory_handler_callback( _thand_cb );
+	    iterators[a]->set_trajectory_handler_callback2( _thand_cb2 );
 	    iterators[a]->set_trajectory_end_callback( _tend_cb, _pdb );
 	    iterators[a]->set_trajectory_surface_collision_callback( _tsur_cb );
 	    iterators[a]->set_bfield_suppression_callback( _bsup_cb );

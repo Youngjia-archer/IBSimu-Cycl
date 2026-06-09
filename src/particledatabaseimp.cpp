@@ -2,7 +2,7 @@
  *  \brief Particle database implementation
  */
 
-/* Copyright (c) 2005-2015,2021 Taneli Kalvas. All rights reserved.
+/* Copyright (c) 2005-2015,2021,2026 Taneli Kalvas. All rights reserved.
  *
  * You can redistribute this software and/or modify it under the terms
  * of the GNU General Public License as published by the Free Software
@@ -150,6 +150,12 @@ void ParticleDataBaseImp::set_bfield_suppression( const CallbackFunctorD_V *bsup
 void ParticleDataBaseImp::set_trajectory_handler_callback( TrajectoryHandlerCallback *thand_cb )
 {
     _thand_cb = thand_cb;
+}
+
+
+void ParticleDataBaseImp::set_trajectory_handler_callback2( TrajectoryHandlerCallback2 *thand_cb2 )
+{
+    _thand_cb2 = thand_cb2;
 }
 
 

@@ -71,6 +71,7 @@ ParticleGraph::ParticleGraph( const Geometry &geom, const ParticleDataBase &pdb,
     _color.push_back( Vec3D( 0.5, 0.2, 1.0 ) ); // Purple
     _color.push_back( Vec3D( 0.2, 1.0, 0.5 ) ); // Bluish green
     _color.push_back( Vec3D( 1.0, 0.2, 0.5 ) ); // Pink
+
 }
 
 

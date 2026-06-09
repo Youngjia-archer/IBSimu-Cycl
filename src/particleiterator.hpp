@@ -2,7 +2,7 @@
  *  \brief %Particle iterator
  */
 
-/* Copyright (c) 2005-2013,2018,2022 Taneli Kalvas, Tobin Jones. All rights reserved.
+/* Copyright (c) 2005-2013,2018,2022,2026 Taneli Kalvas, Tobin Jones. All rights reserved.
  *
  * You can redistribute this software and/or modify it under the terms
  * of the GNU General Public License as published by the Free Software
@@ -300,9 +300,10 @@ template <class PP> class ParticleIterator {
 
     ParticleIteratorData       _pidata;        /*!< \brief User data provided to PP::get_derivatives(). */
     TrajectoryHandlerCallback *_thand_cb;      /*!< \brief Trajectory handler callback. */
+    TrajectoryHandlerCallback2 *_thand_cb2;      /*!< \brief Trajectory handler callback 2. */
     TrajectoryEndCallback     *_tend_cb;       /*!< \brief Trajectory end callback. */
     TrajectorySurfaceCollisionCallback *_tsur_cb;   /*!< \brief Trajectory surface collision callback. */
-    const TrajectoryEndCallback *_bsup_cb;     /*!< \brief B-field plasma suppression callback. */
+    const CallbackFunctorD_V  *_bsup_cb;       /*!< \brief B-field plasma suppression callback. */
     ParticleDataBase          *_pdb;           /*!< \brief Particle database pointer for adding secondary particles. */
     pthread_mutex_t           *_scharge_mutex; /*!< \brief Space charge mutex. */
 
@@ -889,6 +890,7 @@ template <class PP> class ParticleIterator {
 
 	    if( _save_points )
 		save_trajectory_point( _coldata[a]._x );
+	    _cdpast.push( _coldata[a]._x );
 
 	    DEBUG_MESSAGE( "Coldata " << a << "\n" <<
 			   "  x = " << _coldata[a]._x << "\n" <<
@@ -899,7 +901,6 @@ template <class PP> class ParticleIterator {
 
 	    // Update space charge for mesh volume i
 	    if( _scharge_dep == SCHARGE_DEPOSITION_LINEAR && _pidata._scharge ) {
-		_cdpast.push( _coldata[a]._x );
 		scharge_add_from_trajectory_linear( *_pidata._scharge, _scharge_mutex, particle.IQ(),
 						    _coldata[a]._dir, _cdpast, i );
 	    }
@@ -916,6 +917,8 @@ template <class PP> class ParticleIterator {
 	    // Call trajectory handler callback
 	    if( _thand_cb )
 		(*_thand_cb)( &particle, &_coldata[a]._x, &x2 );
+	    if( _thand_cb2 )
+		(*_thand_cb2)( &particle, &_cdpast[1], &_coldata[a]._x, &x2 );
 
 	    // Clear coldata and exit if particle collided.
 	    if( particle.get_status() != PARTICLE_OK ) {
@@ -1149,7 +1152,7 @@ public:
 	: _type(type), _intrp(intrp), _scharge_dep(scharge_dep), _epsabs(epsabs), _epsrel(epsrel), 
 	  _maxsteps(maxsteps), _maxt(maxt), _save_points(save_points), _trajdiv(trajdiv), 
 	  _surface_collision(false), _pidata(scharge,efield,bfield,geom), 
-	  _thand_cb(0), _tend_cb(0), _tsur_cb(0), _bsup_cb(0), _pdb(0), _scharge_mutex(scharge_mutex), 
+	  _thand_cb(0), _thand_cb2(0), _tend_cb(0), _tsur_cb(0), _bsup_cb(0), _pdb(0), _scharge_mutex(scharge_mutex), 
 	  _stat(geom->number_of_boundaries()) {
 	
 	// Initialize mirroring
@@ -1213,6 +1216,13 @@ public:
     }
 
 
+    /*! \brief Set trajectory handler callback 2. 
+     */
+    void set_trajectory_handler_callback2( TrajectoryHandlerCallback2 *thand_cb2 ) {
+	_thand_cb2 = thand_cb2;
+    }
+
+
     /*! \brief Set trajectory end callback. 
      */
     void set_trajectory_end_callback( TrajectoryEndCallback *tend_cb, ParticleDataBase *pdb ) {
@@ -1231,6 +1241,7 @@ public:
     /*! \brief Set B-field potential dependent suppression callback.
      */
     void set_bfield_suppression_callback( const CallbackFunctorD_V *bsup_cb ) {
+	_bsup_cb = bsup_cb;
 	_pidata.set_bfield_suppression_callback( bsup_cb );
     }
 
@@ -1283,10 +1294,8 @@ public:
 	save_trajectory_point( x );
 	_pidata._qm = particle->qm();
 	_xi = x;
-	if( _scharge_dep == SCHARGE_DEPOSITION_LINEAR ) {
-	    _cdpast.clear();
-	    _cdpast.push( x );
-	}
+	_cdpast.clear();
+	_cdpast.push( x );
 
 	// Reset integrator
 	gsl_odeiv_step_reset( _step );
