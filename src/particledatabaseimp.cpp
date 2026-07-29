@@ -60,7 +60,7 @@ ParticleDataBaseImp::ParticleDataBaseImp( ParticleDataBase *pdb, const Geometry 
       _scharge_dep(SCHARGE_DEPOSITION_PIC), _maxsteps(1000), 
       _maxt(1e-3), _save_points(false), _trajdiv(1), _rhosum(0.0), _iteration(0), 
       _relativistic(false), _surface_collision(false),
-      _bsup_cb(NULL), _thand_cb(NULL), _tend_cb(NULL), _tsur_cb(NULL),
+      _bsup_cb(NULL), _thand_cb(NULL), _thand_cb2(NULL), _tend_cb(NULL), _tsur_cb(NULL),
       _pdb(pdb)
 {
     for( size_t a = 0; a < 6; a++ )
@@ -91,6 +91,7 @@ ParticleDataBaseImp::ParticleDataBaseImp( ParticleDataBase *pdb, std::istream &s
     _surface_collision = false; // Should be loaded
     _bsup_cb = NULL;
     _thand_cb = NULL;
+    _thand_cb2 = NULL;
     _tend_cb = NULL;
     _tsur_cb = NULL;
 }
@@ -102,7 +103,7 @@ ParticleDataBaseImp::ParticleDataBaseImp( const ParticleDataBaseImp &pdb )
       _save_points(pdb._save_points), _trajdiv(pdb._trajdiv), _rhosum(pdb._rhosum), 
       _stat(pdb._stat), _iteration(0), _relativistic(pdb._relativistic), 
       _surface_collision(pdb._surface_collision), _bsup_cb(pdb._bsup_cb), 
-      _thand_cb(pdb._thand_cb), _tend_cb(pdb._tend_cb), _tsur_cb(pdb._tsur_cb),
+      _thand_cb(pdb._thand_cb), _thand_cb2(pdb._thand_cb2), _tend_cb(pdb._tend_cb), _tsur_cb(pdb._tsur_cb),
       _pdb(pdb._pdb)
 {
     for( uint32_t a = 0; a < 6; a++ )
