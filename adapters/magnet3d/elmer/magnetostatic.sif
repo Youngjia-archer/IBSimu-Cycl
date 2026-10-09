@@ -1,0 +1,140 @@
+! =============================================================================
+! Elmer 三维静磁（WhitneyAV）求解器模板 —— 回旋加速器扇形磁铁
+! -----------------------------------------------------------------------------
+! 用法:  ElmerSolver magnetostatic.sif
+! 输入:  sector.msh (由 elmer/sector.geo 生成, 见 README.md)
+! 输出:  magnet.vtu  (含 magnetic flux density B)
+!
+! 注意: 本模板为**起点**，实际使用需按你的磁铁尺寸/材料/激励修改。
+! =============================================================================
+
+Header
+  CHECK KEYWORDS Warn
+  Mesh DB "." "sector"
+  Include Path ""
+  Results Directory "."
+End
+
+! ----------------------------------------------------------------------------
+! 常量与方程组
+! ----------------------------------------------------------------------------
+Simulation
+  Max Output Level = 5
+  Coordinate System = Cartesian 3D
+  Simulation Type = Steady state
+  Steady State Max Iterations = 50
+  Steady State Min Iterations = 2
+  Output Intervals = 1
+  Post File = "magnet.vtu"
+End
+
+Constants
+  Permittivity of Vacuum = 8.854187817e-12
+  Permeability of Vacuum = 1.2566370614e-6
+End
+
+! ----------------------------------------------------------------------------
+! 材料：空气（线性）与铁芯（非线性，B-H 曲线）
+!   !!! 请替换 Iron 的 B-H 数据为你的实际材料曲线（H[A/m], B[T]）!!!
+! ----------------------------------------------------------------------------
+Material 1  ! Air
+  Name = "Air"
+  Relative Permeability = 1.0
+End
+
+Material 2  ! Iron (非线性)
+  Name = "Iron"
+  Density = 7870.0
+  ! 简易 B-H 曲线示例（非线性），单位: H[A/m] B[T]
+  H-B Curve = Variable "dummy"
+    Real Cubic Monotone
+    0.0     0.0
+    100.0   0.5
+    200.0   1.0
+    400.0   1.4
+    1000.0  1.6
+    5000.0  1.8
+    20000.0 2.0
+  End
+End
+
+! ----------------------------------------------------------------------------
+! 体：几何由 sector.geo 的 Physical Volume 编号对应
+!   Physical Volume("air")  = 1
+!   Physical Volume("iron") = 2
+!   Physical Volume("coil") = 3   (激励线圈)
+! ----------------------------------------------------------------------------
+Body 1
+  Target Bodies = 1
+  Name = "Air body"
+  Equation = 1
+  Material = 1
+End
+
+Body 2
+  Target Bodies = 2
+  Name = "Iron body"
+  Equation = 1
+  Material = 2
+End
+
+! 线圈：用电流密度激励（若用永久磁铁/无电流磁化，改用磁化强度 M）
+! Body 3
+!   Target Bodies = 3
+!   Name = "Coil body"
+!   Equation = 2
+!   Material = 1
+!   Body Force = 1
+! End
+
+! ----------------------------------------------------------------------------
+! 方程
+! ----------------------------------------------------------------------------
+Equation 1
+  Name = "Magnetostatics"
+  Active Solvers(2) = 1 2
+End
+
+Solver 1  ! WhitneyAVSolver
+  Equation = "MGS"
+  Procedure = "MagnetoDynamics" "WhitneyAVSolver"
+  Variable = "AV"
+  Variable DOFs = 4
+  Linear System Solver = Iterative
+  Linear System Iterative Method = BiCGStab
+  Linear System Preconditioning = ILU1
+  Linear System Max Iterations = 1000
+  Linear System Convergence Tolerance = 1.0e-9
+  Nonlinear System Max Iterations = 20
+  Nonlinear System Convergence Tolerance = 1.0e-6
+  Nonlinear System Relaxation Factor = 0.7
+  Steady State Convergence Tolerance = 1.0e-6
+End
+
+Solver 2  ! WhitneyAVPost
+  Equation = "MGS post"
+  Procedure = "MagnetoDynamics" "MagnetoDynamicsCalcFields"
+  Calculate Magnetic Field Strength = True
+  Calculate Magnetic Flux Density = True
+  Calculate Current Density = True
+  Linear System Solver = Iterative
+  Linear System Iterative Method = CG
+  Linear System Preconditioning = ILU0
+  Linear System Convergence Tolerance = 1.0e-9
+End
+
+! ----------------------------------------------------------------------------
+! 边界条件
+!   - 远场: 外边界设 AV = 0 (或用 Infinity BC 求解器)
+! ----------------------------------------------------------------------------
+Boundary Condition 1
+  Target Boundaries(1) = 1   ! 空气域外表面
+  Name = "Far field"
+  AV = Real 0.0
+End
+
+! 线圈电流（配合 Body Force 3 使用）
+! Body Force 1
+!   Name = "Coil current"
+!   Current Density = 1.0e6
+! End

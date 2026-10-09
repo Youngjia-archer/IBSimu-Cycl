@@ -299,5 +299,21 @@ IBSimu-Cycl/
   测试 `tests/cycl_ringmap.cpp` 全通过（`make check` = **21/21**）。
 - [x] 算例数据入库（`examples/cyclotron/data/`，来源与许可见其 `README.md`）。
 - [x] **CI 全绿**：headless 与 default-GUI 两作业均通过。
-- [ ] 待办：离面 (Br, Bθ) 重建（OPAL 用中平面展开 + θ 导数）；
-  **Elmer FEM 适配器**（几何 → 3D B-map）；`CFieldMap3D`（笛卡尔每轴步长）。
+### 11.4 P2 收尾（A / C / B）
+
+- [x] **A. 离面场重建** —— `CRingFieldMap3D`（`src/cyclotron/ringfield3d.{hpp,cpp}`）：
+  由中平面 Bz 用真空 Laplace 展开重建 `Br/Bθ/Bz`（与 OPAL 同源）；
+  实测 Maxwell 校验：`|∇·B|/(|B|/r) ≈ 2e-3`、**`|∇×B| ≈ 5e-6`（无旋）**、
+  45° 旋转不变、`Br/z ≈ dBz/dr`（差 0.3%）。
+- [x] **C. 笛卡尔场图** —— `CFieldMap3D`（`src/cyclotron/fieldmap3d.{hpp,cpp}`）：
+  每轴独立步长 + 三线性插值 + clamp + 原生 ASCII 读写
+  （上游 `MeshVectorField` 仅支持各向同性步长）。
+- [x] **B. Elmer 适配器脚手架** —— `adapters/magnet3d/`：
+  - `elmer/magnetostatic.sif`：WhitneyAV 三维静磁，含铁芯非线性 B-H 曲线与远场边界；
+  - `elmer/sector.geo`：gmsh 扇形磁铁几何模板；
+  - `field_to_fieldmap3d.py`：散点 `x y z Bx By Bz` → IDW 重采样 → 本项目场图格式（numpy）；
+  - `tests/test_field_to_fieldmap3d.py`：自检通过（均匀场精确、线性场误差 0.9%）。
+  > Elmer / gmsh 需用户自行安装（本机未装）；适配器为**松耦合文件交换**，不链接其代码。
+- [x] `make check` = **23/23**；CI 三作业：headless / default-GUI / python-adapter。
+- [ ] 后续（P3）：Palace RF 腔本征模适配器；柱坐标场图直转；
+  最小端到端 Demo（真实 B-map → 3D 跟踪 → 可视化 / 回旋频率验证）。

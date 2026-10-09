@@ -58,3 +58,19 @@ jobs:
 
       - name: Run tests
         run: make check
+
+  adapters-python:
+    name: "Adapter tooling (python)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install python deps
+        run: python3 -m pip install numpy
+
+      - name: Test magnet3d field converter
+        run: python3 adapters/magnet3d/tests/test_field_to_fieldmap3d.py
