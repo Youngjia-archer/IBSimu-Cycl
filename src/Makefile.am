@@ -2,8 +2,8 @@ lib_LTLIBRARIES = libibsimu-1.0.6dev.la
 
 libibsimu_1_0_6dev_la_LDFLAGS = -version-info 0:1:0
 
-AM_LDFLAGS = -Wall @rdynamic_flag@ @lt_enable_auto_import@
-AM_CPPFLAGS = -Wall -I$(srcdir)/cyclotron
+AM_LDFLAGS = -Wall @rdynamic_flag@ @lt_enable_auto_import@ $(OPENMP_CXXFLAGS)
+AM_CPPFLAGS = -Wall -I$(srcdir)/cyclotron $(OPENMP_CXXFLAGS)
 
 libibsimu_1_0_6dev_la_SOURCES = \
 axisymmetricvectorfield.cpp \
@@ -222,7 +222,9 @@ cyclotron/ringfield3d.hpp \
 cyclotron/fieldmap3d.cpp \
 cyclotron/fieldmap3d.hpp \
 cyclotron/boris.cpp \
-cyclotron/boris.hpp
+cyclotron/boris.hpp \
+cyclotron/ensembletracker.cpp \
+cyclotron/ensembletracker.hpp
 
 libibsimu_1_0_6dev_la_includedir=$(includedir)/ibsimu-1.0.6dev
 libibsimu_1_0_6dev_la_include_HEADERS = \

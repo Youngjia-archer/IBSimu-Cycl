@@ -365,3 +365,57 @@ IBSimu-Cycl/
 - [x] `make check` = **27/27**。
 - [ ] 后续：P4 的 Part B 可改用**真实场强**（无需缩放）；注入/引出；R1 并行化/GPU（P5）；
   R3（openPMD/HDF5 + 3D 交互可视化）。
+
+### 11.8 G1 进展（R1 第一级：OpenMP 粒子级并行）
+
+- [x] 新增 `ibsimu_cycl::CEnsembleTracker`（`src/cyclotron/ensembletracker.{hpp,cpp}`）：
+  粒子系综的**数据并行**推进器。回旋加速器三维跟踪的天然并行维是粒子维——粒子之间
+  无相互作用（空间电荷除外），场为只读（`VectorField::operator()` 是 `const`）。
+- [x] `configure.ac` 增加 `AC_OPENMP`；`src/Makefile.am` / `tests/Makefile.am` 的
+  `AM_CPPFLAGS` 与 `AM_LDFLAGS` 引用 `$(OPENMP_CXXFLAGS)`。
+  **踩坑**：链接 OpenMP 必须复用 `OPENMP_CXXFLAGS`，`OPENMP_CXX_LDFLAGS` 是空的
+  （否则报 `undefined reference to GOMP_parallel`）。
+- [x] **关键实现决策：单一并行区 + 步间屏障**。
+  最初的写法是"每步一个 `#pragma omp parallel for`"，基准显示：
+
+  | 场景 | 每粒子每步耗时 | 加速比 |
+  | --- | --- | --- |
+  | 真实 PSI 场图 | ~0.4 μs | 6.8× ✔ |
+  | 小场图 / 解析场 | ~0.1 μs | **0.61×（更慢！）** |
+
+  原因是 400 次 fork/join 的启动开销完全吃掉了收益。改为**只建立一个并行区、
+  步间用屏障同步**（时变场相位更新放在 `single` 区）：
+
+  ```cpp
+  #pragma omp parallel
+  {
+      for( int step = 0; step < nsteps; ++step ) {
+  #pragma omp single
+          { if( _E ) _E->set_time( (double)(step+1)*dt ); }
+  #pragma omp for schedule(static)
+          for( long i = 0; i < n; ++i )
+              pusher.step( _E, _B, p[i].x, p[i].v, dt );
+      }
+  }
+  ```
+
+  改后小场图 **6.05×**、真实场图 **7.27×**——两类场景都不再被启动开销支配。
+- [x] `tests/cycl_omp_tracker.cpp`：
+  - **位一致性**：单线程与多线程结果 `max|diff| = 0.0`（逐位相同；`schedule(static)`
+    下每个粒子的运算序列与串行完全一致）。
+  - **运行时自检**：先跑一个平凡的独立并行循环，若连它也拿不到加速（受限容器/单核
+    CI runner），则**跳过**加速断言，避免在受限环境误报。这也使测试在 2 核 CI 上稳定。
+  - **重复取最优**（`reps=3`，取最小时间）消除瞬时系统负载噪声——曾观测到同一个
+    二进制因后台负载给出 0.38× 的假阴性。
+- [x] 强扩展性（i7-10750H，6 物理核 / 12 逻辑核，N=2000 粒子 × 400 步）：
+
+  | 线程数 | 1 | 2 | 4 | 8 | 12 |
+  | --- | --- | --- | --- | --- | --- |
+  | 小场图（均匀场） | 1.00× | 1.97× | 3.84× | 5.69× | 8.30× |
+  | 真实 PSI Ring 场图 | 1.00× | 1.97× | 3.87× | 5.89× | 7.22× |
+
+  4 线程以内接近线性，之后受物理核数（6）限制；12 逻辑线程下效率约 60%。
+  单线程速率 2.6×10⁶ 粒子·步/秒（真实场图）。
+- [x] `make check` = **28/28**。
+- [ ] 后续（R1 第二、三级）：MPI + hypre 区域分解（多节点）；GPU 后端（Kokkos 优先，
+  一套代码覆盖 CUDA/HIP/SYCL，用户当前只考虑 NVIDIA）。

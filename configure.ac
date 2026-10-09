@@ -47,6 +47,11 @@ AC_PROG_CXX
 dnl AC_PROG_RANLIB
 
 dnl ---------------------------------
+dnl OpenMP (IBSimu-Cycl: particle-level parallelism)
+dnl ---------------------------------
+AC_OPENMP
+
+dnl ---------------------------------
 dnl pkgconfig
 dnl ---------------------------------
 
