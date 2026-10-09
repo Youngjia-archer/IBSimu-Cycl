@@ -61,13 +61,19 @@ sudo apt-get install -y build-essential autoconf automake libtool pkg-config \
     zlib1g-dev libpng-dev libfontconfig1-dev libfreetype-dev libgtk-3-dev
 ```
 
-无头（无 GUI）构建：
+默认构建（**包含 GTK GUI**）：
 
 ```bash
 ./reconf                 # 重新生成 configure（autotools）
-./configure              # 如需无 GUI：--without-gtk3
+./configure              # 默认启用 GTK GUI（系统存在 gtk+-3.0 时）
 make -j"$(nproc)"
 make check
+```
+
+无头构建（服务器 / CI）：
+
+```bash
+./configure --without-gtk3 --without-opengl
 ```
 
 > 上游使用 GNU autotools。新增模块在 P0 阶段沿用该构建系统。

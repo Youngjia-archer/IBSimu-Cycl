@@ -273,3 +273,16 @@ IBSimu-Cycl/
   - <https://github.com/OPALX-project/OPALX>（新一代，Exascale）
   - <https://github.com/OPALX-project/Manual-old>（手册 + `Cyclotron/*.dat`）
 - 详见 `examples/cyclotron/README.md`。
+
+### 11.2 P1 进展（3D 场基座）
+
+- [x] `CCylFieldMap3D`：柱坐标 (r, θ, z) 三维矢量场图，**支持方位角 θ 变化**
+  （上游 `MeshVectorField` 仅均匀立方/轴对称，做不到），三线性插值 + θ 周期 + 越界 clamp；
+  原生 ASCII 读写。
+- [x] `CTimeVaryingField`：时变场包装 `F(x,t)=A(x)·(offset+amp·cos(ωt+φ0))`，供 RF 场使用；
+  与 IBSimu `VectorField` 接口兼容（`operator()(const Vec3D&)`）。
+- [x] 单元测试 `tests/cycl_field3d.cpp`：均匀场/线性场精确性、θ 周期插值、时变调制、
+  ASCII 往返 —— **8/8 通过**，并纳入 `make check`。
+- [x] 接入 autotools（库 + 测试）；CI 拆分为 **headless** 与 **默认 GUI** 两个作业。
+- [ ] 待办：`CFieldMap3D`（笛卡尔、**每轴独立步长**）；OPAL `bfield.dat` 解析器（归入 P2）；
+  openPMD/HDF5 输出（P6）；最小端到端 Demo（导入 B-map → 3D 跟踪 → 可视化）。

@@ -17,6 +17,7 @@ solver1d_scharge_SOURCES = solver1d_scharge.cpp
 solver2d_coax_SOURCES = solver2d_coax.cpp
 solver3d_sphere_SOURCES = solver3d_sphere.cpp
 solvercyl_coax_SOURCES = solvercyl_coax.cpp
+cycl_field3d_SOURCES = cycl_field3d.cpp
 
 check_PROGRAMS = \
 nsimp_plasmacyl \
@@ -37,7 +38,8 @@ plasmacyl \
 solver1d_scharge \
 solver2d_coax \
 solver3d_sphere \
-solvercyl_coax
+solvercyl_coax \
+cycl_field3d
 
 TESTS = $(check_PROGRAMS)
 
@@ -46,7 +48,7 @@ libibsimutest_la_SOURCES = \
 ibsimutest.cpp \
 ibsimutest.hpp
 
-AM_CPPFLAGS = $(CPPFLAGS) -Wall -g -I$(top_srcdir)/src
+AM_CPPFLAGS = $(CPPFLAGS) -Wall -g -I$(top_srcdir)/src -I$(top_srcdir)/src/cyclotron
 AM_LDFLAGS = $(LIBS) -L$(top_srcdir)/src @rdynamic_flag@
 LDADD = $(top_builddir)/src/libibsimu-1.0.6dev.la libibsimutest.la -lm
 
