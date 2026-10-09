@@ -41,9 +41,7 @@ CFieldMap3D::CFieldMap3D( std::size_t nx, std::size_t ny, std::size_t nz,
         throw( std::invalid_argument("CFieldMap3D: grid size must be >= 1 in each direction") );
 
     std::size_t total = _nx*_ny*_nz;
-    _fx.assign( total, 0.0 );
-    _fy.assign( total, 0.0 );
-    _fz.assign( total, 0.0 );
+    _data.assign( 3*total, 0.0 );
 }
 
 CFieldMap3D::~CFieldMap3D()
@@ -55,16 +53,16 @@ void CFieldMap3D::set_value( std::size_t i, std::size_t j, std::size_t k,
 {
     if( i >= _nx || j >= _ny || k >= _nz )
         throw( std::out_of_range("CFieldMap3D::set_value: index out of range") );
-    std::size_t n = idx( i, j, k );
-    _fx[n] = fx; _fy[n] = fy; _fz[n] = fz;
+    std::size_t n = 3*idx( i, j, k );
+    _data[n] = fx; _data[n+1] = fy; _data[n+2] = fz;
 }
 
 Vec3D CFieldMap3D::node_value( std::size_t i, std::size_t j, std::size_t k ) const
 {
     if( i >= _nx || j >= _ny || k >= _nz )
         throw( std::out_of_range("CFieldMap3D::node_value: index out of range") );
-    std::size_t n = idx( i, j, k );
-    return( Vec3D( _fx[n], _fy[n], _fz[n] ) );
+    std::size_t n = 3*idx( i, j, k );
+    return( Vec3D( _data[n], _data[n+1], _data[n+2] ) );
 }
 
 const Vec3D CFieldMap3D::operator()( const Vec3D &x ) const
@@ -82,14 +80,16 @@ const Vec3D CFieldMap3D::operator()( const Vec3D &x ) const
     const double V[2] = { 1.0-ty, ty };
     const double W[2] = { 1.0-tz, tz };
 
+    const double *dat = _data.data();
     double v[3] = { 0.0, 0.0, 0.0 };
     for( int a = 0; a < 2; ++a )
         for( int b = 0; b < 2; ++b )
             for( int c = 0; c < 2; ++c ) {
                 double w = U[a]*V[b]*W[c];
-                v[0] += w*component( 0, I[a], J[b], K[c] );
-                v[1] += w*component( 1, I[a], J[b], K[c] );
-                v[2] += w*component( 2, I[a], J[b], K[c] );
+                const double *p = dat + 3*idx( (std::size_t)I[a], (std::size_t)J[b], (std::size_t)K[c] );
+                v[0] += w*p[0];
+                v[1] += w*p[1];
+                v[2] += w*p[2];
             }
     return( Vec3D( v[0], v[1], v[2] ) );
 }
@@ -105,8 +105,8 @@ void CFieldMap3D::save_ascii( std::ostream &os ) const
     for( std::size_t i = 0; i < _nx; ++i )
         for( std::size_t j = 0; j < _ny; ++j )
             for( std::size_t k = 0; k < _nz; ++k ) {
-                std::size_t n = idx( i, j, k );
-                os << _fx[n] << " " << _fy[n] << " " << _fz[n] << "\n";
+                std::size_t n = 3*idx( i, j, k );
+                os << _data[n] << " " << _data[n+1] << " " << _data[n+2] << "\n";
             }
 }
 

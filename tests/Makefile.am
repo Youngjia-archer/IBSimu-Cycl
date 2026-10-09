@@ -26,6 +26,7 @@ cycl_rfgap_SOURCES = cycl_rfgap.cpp
 cycl_accel_SOURCES = cycl_accel.cpp
 cycl_relativistic_SOURCES = cycl_relativistic.cpp
 cycl_omp_tracker_SOURCES = cycl_omp_tracker.cpp
+cycl_fieldbench_SOURCES = cycl_fieldbench.cpp
 
 check_PROGRAMS = \
 nsimp_plasmacyl \
@@ -55,7 +56,8 @@ cycl_track \
 cycl_rfgap \
 cycl_accel \
 cycl_relativistic \
-cycl_omp_tracker
+cycl_omp_tracker \
+cycl_fieldbench
 
 TESTS = $(check_PROGRAMS)
 

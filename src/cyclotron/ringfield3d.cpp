@@ -20,10 +20,11 @@ CRingFieldMap3D::CRingFieldMap3D( const CCylFieldMap3D &midplane )
     if( _r0 <= 0.0 )
         throw( std::invalid_argument("CRingFieldMap3D: r0 must be > 0") );
 
-    _b.resize( _nr*_nt );
+    // 按节点交错分配：每个节点 C_NCOMP 个 double
+    _data.assign( _nr*_nt*(std::size_t)C_NCOMP, 0.0 );
     for( std::size_t i = 0; i < _nr; ++i )
         for( std::size_t k = 0; k < _nt; ++k )
-            _b[idx(i,k)] = midplane.node_value( i, k, 0 )[2];
+            ref( i, k, C_B ) = midplane.node_value( i, k, 0 )[2];
 
     compute_derivatives();
 }
@@ -35,11 +36,6 @@ CRingFieldMap3D::~CRingFieldMap3D()
 void CRingFieldMap3D::compute_derivatives()
 {
     const std::size_t nr = _nr, nt = _nt;
-    _dbr.assign( nr*nt, 0.0 );
-    _dbth.assign( nr*nt, 0.0 );
-    _tb.assign( nr*nt, 0.0 );
-    _dtrb.assign( nr*nt, 0.0 );
-    _dttb.assign( nr*nt, 0.0 );
 
     const long ntl = (long)nt;
     auto wrap = [ntl]( long k ) -> std::size_t { return (std::size_t)(((k % ntl) + ntl) % ntl); };
@@ -48,17 +44,17 @@ void CRingFieldMap3D::compute_derivatives()
     for( std::size_t i = 0; i < nr; ++i ) {
         for( std::size_t k = 0; k < nt; ++k ) {
             // d/dtheta (周期中心差分)
-            double bp = _b[idx(i, wrap((long)k+1))];
-            double bm = _b[idx(i, wrap((long)k-1))];
-            _dbth[idx(i,k)] = (bp - bm)/(2.0*_dtheta);
+            double bp = val( i, wrap((long)k+1), C_B );
+            double bm = val( i, wrap((long)k-1), C_B );
+            ref( i, k, C_DBTH ) = (bp - bm)/(2.0*_dtheta);
 
             // d/dr (内部中心差分, 边界单侧)
             if( i == 0 )
-                _dbr[idx(i,k)] = (_b[idx(1,k)] - _b[idx(0,k)])/_dr;
+                ref( i, k, C_DBR ) = ( val(1,k,C_B) - val(0,k,C_B) )/_dr;
             else if( i == nr-1 )
-                _dbr[idx(i,k)] = (_b[idx(nr-1,k)] - _b[idx(nr-2,k)])/_dr;
+                ref( i, k, C_DBR ) = ( val(nr-1,k,C_B) - val(nr-2,k,C_B) )/_dr;
             else
-                _dbr[idx(i,k)] = (_b[idx(i+1,k)] - _b[idx(i-1,k)])/(2.0*_dr);
+                ref( i, k, C_DBR ) = ( val(i+1,k,C_B) - val(i-1,k,C_B) )/(2.0*_dr);
         }
     }
 
@@ -66,88 +62,109 @@ void CRingFieldMap3D::compute_derivatives()
     for( std::size_t i = 0; i < nr; ++i ) {
         double r = r_at( i );
         for( std::size_t k = 0; k < nt; ++k ) {
-            double bthth = ( _b[idx(i, wrap((long)k+1))]
-                           - 2.0*_b[idx(i,k)]
-                           + _b[idx(i, wrap((long)k-1))] )/(_dtheta*_dtheta);
+            double bthth = ( val(i,wrap((long)k+1),C_B)
+                           - 2.0*val(i,k,C_B)
+                           + val(i,wrap((long)k-1),C_B) )/(_dtheta*_dtheta);
 
             double brr;
             if( i == 0 )
-                brr = ( _b[idx(2,k)] - 2.0*_b[idx(1,k)] + _b[idx(0,k)] )/(_dr*_dr);
+                brr = ( val(2,k,C_B) - 2.0*val(1,k,C_B) + val(0,k,C_B) )/(_dr*_dr);
             else if( i == nr-1 )
-                brr = ( _b[idx(nr-1,k)] - 2.0*_b[idx(nr-2,k)] + _b[idx(nr-3,k)] )/(_dr*_dr);
+                brr = ( val(nr-1,k,C_B) - 2.0*val(nr-2,k,C_B) + val(nr-3,k,C_B) )/(_dr*_dr);
             else
-                brr = ( _b[idx(i+1,k)] - 2.0*_b[idx(i,k)] + _b[idx(i-1,k)] )/(_dr*_dr);
+                brr = ( val(i+1,k,C_B) - 2.0*val(i,k,C_B) + val(i-1,k,C_B) )/(_dr*_dr);
 
-            _tb[idx(i,k)] = brr + _dbr[idx(i,k)]/r + bthth/(r*r);
+            ref( i, k, C_TB ) = brr + val(i,k,C_DBR)/r + bthth/(r*r);
         }
     }
 
     // --- Tb 的一阶导数 ---
     for( std::size_t i = 0; i < nr; ++i ) {
         for( std::size_t k = 0; k < nt; ++k ) {
-            _dttb[idx(i,k)] = ( _tb[idx(i, wrap((long)k+1))]
-                              - _tb[idx(i, wrap((long)k-1))] )/(2.0*_dtheta);
+            ref( i, k, C_DTTB ) = ( val(i,wrap((long)k+1),C_TB)
+                                  - val(i,wrap((long)k-1),C_TB) )/(2.0*_dtheta);
 
             if( i == 0 )
-                _dtrb[idx(i,k)] = ( _tb[idx(1,k)] - _tb[idx(0,k)] )/_dr;
+                ref( i, k, C_DTRB ) = ( val(1,k,C_TB) - val(0,k,C_TB) )/_dr;
             else if( i == nr-1 )
-                _dtrb[idx(i,k)] = ( _tb[idx(nr-1,k)] - _tb[idx(nr-2,k)] )/_dr;
+                ref( i, k, C_DTRB ) = ( val(nr-1,k,C_TB) - val(nr-2,k,C_TB) )/_dr;
             else
-                _dtrb[idx(i,k)] = ( _tb[idx(i+1,k)] - _tb[idx(i-1,k)] )/(2.0*_dr);
+                ref( i, k, C_DTRB ) = ( val(i+1,k,C_TB) - val(i-1,k,C_TB) )/(2.0*_dr);
         }
     }
 }
 
-double CRingFieldMap3D::interp( double r, double theta, const std::vector<double> &f ) const
-{
-    // r 方向: clamp
-    double fr = (r - _r0)/_dr;
-    int i0, i1; double tr;
-    if( _nr <= 1 ) { i0 = i1 = 0; tr = 0.0; }
-    else {
-        i0 = (int)std::floor( fr ); tr = fr - i0;
-        if( i0 < 0 ) { i0 = i1 = 0; tr = 0.0; }
-        else if( (std::size_t)i0 >= _nr-1 ) { i0 = i1 = (int)_nr-1; tr = 0.0; }
-        else i1 = i0 + 1;
-    }
-
-    // theta 方向: 周期
-    long ntl = (long)_nt;
-    double ft = theta/_dtheta;
-    int j = (int)std::floor( ft );
-    double tt = ft - j;
-    if( tt < 0.0 ) tt = 0.0;
-    std::size_t j0 = (std::size_t)((((long)j % ntl) + ntl) % ntl);
-    std::size_t j1 = (std::size_t)(((long)j0 + 1) % ntl);
-
-    double f00 = f[idx((std::size_t)i0,j0)], f01 = f[idx((std::size_t)i0,j1)];
-    double f10 = f[idx((std::size_t)i1,j0)], f11 = f[idx((std::size_t)i1,j1)];
-
-    return( (1.0-tr)*((1.0-tt)*f00 + tt*f01) + tr*((1.0-tt)*f10 + tt*f11) );
-}
-
 const Vec3D CRingFieldMap3D::operator()( const Vec3D &x ) const
 {
-    double r     = std::sqrt( x[0]*x[0] + x[1]*x[1] );
-    double theta = std::atan2( x[1], x[0] );
+    const double x0 = x[0], y0 = x[1], z = x[2];
+
+    double r = std::sqrt( x0*x0 + y0*y0 );
+    if( r == 0.0 )  // 轴上：Br/Btheta 项含 1/r，由轴对称极限取 0
+        return( Vec3D( 0.0, 0.0, val(0,0,C_B) ) );
+
+    double theta = std::atan2( y0, x0 );
     if( theta < 0.0 ) theta += 2.0*M_PI;
-    double z = x[2];
 
-    double b    = interp( r, theta, _b );
-    double dbr  = interp( r, theta, _dbr );
-    double dbth = interp( r, theta, _dbth );
-    double tb   = interp( r, theta, _tb );
-    double dtrb = interp( r, theta, _dtrb );
-    double dttb = interp( r, theta, _dttb );
+    // ---- 单元与权重只计算一次，6 个分量共用（原先每个分量各算一遍）----
+    const int nrl = (int)_nr;
+    const int ntl = (int)_nt;
 
-    double z2 = z*z;
-    double z3 = z2*z;
+    double fr = (r - _r0)/_dr;
+    int i0;
+    double tr;
+    if( fr <= 0.0 ) {            // 低于下边界：clamp 到 i=0
+        i0 = 0;
+        tr = 0.0;
+    } else {
+        i0 = (int)fr;            // fr > 0，截断等价于 floor
+        if( i0 >= nrl-1 ) {      // 高于上边界：clamp 到最后一个节点
+            i0 = nrl-1;
+            tr = 0.0;
+        } else {
+            tr = fr - (double)i0;
+        }
+    }
+    const int i1 = ( i0 < nrl-1 ) ? i0+1 : i0;
 
-    double Bz = b - 0.5*tb*z2;
-    double Br = dbr*z - (1.0/6.0)*dtrb*z3;
-    double Bt = (dbth/r)*z - (1.0/(6.0*r))*dttb*z3;
+    double ft = theta/_dtheta;   // theta >= 0，截断等价于 floor
+    int j = (int)ft;
+    double tt = ft - (double)j;
+    if( tt < 0.0 ) tt = 0.0;
+    j %= ntl;
+    if( j < 0 ) j += ntl;
+    const int j1 = ( j+1 == ntl ) ? 0 : j+1;   // theta 方向周期
 
-    double cs = std::cos( theta ), sn = std::sin( theta );
+    const double w00 = (1.0-tr)*(1.0-tt);
+    const double w01 = (1.0-tr)*tt;
+    const double w10 = tr*(1.0-tt);
+    const double w11 = tr*tt;
+
+    const double *p00 = &_data[node((std::size_t)i0,(std::size_t)j )];
+    const double *p01 = &_data[node((std::size_t)i0,(std::size_t)j1)];
+    const double *p10 = &_data[node((std::size_t)i1,(std::size_t)j )];
+    const double *p11 = &_data[node((std::size_t)i1,(std::size_t)j1)];
+
+    double f[C_NCOMP];
+    for( int c = 0; c < (int)C_NCOMP; ++c )
+        f[c] = w00*p00[c] + w01*p01[c] + w10*p10[c] + w11*p11[c];
+
+    const double b    = f[C_B];
+    const double dbr  = f[C_DBR];
+    const double dbth = f[C_DBTH];
+    const double tb   = f[C_TB];
+    const double dtrb = f[C_DTRB];
+    const double dttb = f[C_DTTB];
+
+    const double z2 = z*z;
+    const double z3 = z2*z;
+
+    const double Bz = b - 0.5*tb*z2;
+    const double Br = dbr*z - (1.0/6.0)*dtrb*z3;
+    const double Bt = (dbth/r)*z - (1.0/(6.0*r))*dttb*z3;
+
+    // 柱 -> 直角：cos/sin(theta) 直接由坐标/半径得到，省去两次超越函数
+    const double cs = x0/r;
+    const double sn = y0/r;
     return( Vec3D( Br*cs - Bt*sn, Br*sn + Bt*cs, Bz ) );
 }
 

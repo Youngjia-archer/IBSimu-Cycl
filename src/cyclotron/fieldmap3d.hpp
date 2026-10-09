@@ -29,16 +29,15 @@ class CFieldMap3D : public VectorField {
     double      _y0, _dy;           /*!< \brief y 起点与步长。 */
     double      _z0, _dz;           /*!< \brief z 起点与步长。 */
 
-    std::vector<double> _fx, _fy, _fz;
+    /*! \brief 按节点交错存储的 (Fx,Fy,Fz)：_data[3*idx(i,j,k) + c]。
+     *
+     *  交错存储让一次三线性插值的相邻节点落在同一缓存行附近，避免同时
+     *  跨越三个相距很远的独立数组。
+     */
+    std::vector<double> _data;
 
     std::size_t idx( std::size_t i, std::size_t j, std::size_t k ) const
     { return( (i*_ny + j)*_nz + k ); }
-
-    double component( int c, int i, int j, int k ) const
-    {
-        const std::vector<double> &v = (c == 0 ? _fx : (c == 1 ? _fy : _fz));
-        return( v[idx((std::size_t)i,(std::size_t)j,(std::size_t)k)] );
-    }
 
 public:
 

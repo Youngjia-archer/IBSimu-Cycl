@@ -37,20 +37,30 @@ class CRingFieldMap3D : public VectorField {
     double      _r0, _dr;   /*!< \brief r 起点与步长。 */
     double      _dtheta;    /*!< \brief theta 步长 (rad)。 */
 
-    std::vector<double> _b;     /*!< \brief 中平面 Bz。 */
-    std::vector<double> _dbr;   /*!< \brief dBz/dr。 */
-    std::vector<double> _dbth;  /*!< \brief dBz/dtheta。 */
-    std::vector<double> _tb;    /*!< \brief 横向 Laplacian T b。 */
-    std::vector<double> _dtrb;  /*!< \brief d(Tb)/dr。 */
-    std::vector<double> _dttb;  /*!< \brief d(Tb)/dtheta。 */
+    /*! \brief 节点数据的分量索引（按节点交错存储，见 \a _data）。 */
+    enum { C_B = 0, C_DBR, C_DBTH, C_TB, C_DTRB, C_DTTB, C_NCOMP };
+
+    /*! \brief 交错存储的节点数据：_data[(i*_nt + k)*C_NCOMP + c]。
+     *
+     *  b / dbr / dbth / tb / dtrb / dttb 六个量按**节点交错**存放。一次双线性
+     *  插值只触碰 2 个节点邻域(约 4 条缓存行)；若按分量各存一个大数组，同样
+     *  一次插值要跨越 6 个独立的 1.2 MB 区间(约 12 条缓存行)，在真实场图上
+     *  会明显受内存延迟限制。
+     */
+    std::vector<double> _data;
+
+    std::size_t node( std::size_t i, std::size_t k ) const
+    { return( (i*_nt + k)*(std::size_t)C_NCOMP ); }
+
+    double  val( std::size_t i, std::size_t k, int c ) const
+    { return( _data[node(i,k) + (std::size_t)c] ); }
+    double &ref( std::size_t i, std::size_t k, int c )
+    { return( _data[node(i,k) + (std::size_t)c] ); }
 
     std::size_t idx( std::size_t i, std::size_t k ) const { return( i*_nt + k ); }
     double r_at( std::size_t i ) const { return( _r0 + _dr*(double)i ); }
 
     void compute_derivatives();
-
-    /*! \brief 双线性插值（r 方向 clamp，theta 方向周期）。 */
-    double interp( double r, double theta, const std::vector<double> &f ) const;
 
 public:
 
@@ -66,7 +76,7 @@ public:
     double dtheta() const { return( _dtheta ); }
 
     /*! \brief 中平面网格点的 Bz 值。 */
-    double bz_midplane( std::size_t i, std::size_t k ) const { return( _b[idx(i,k)] ); }
+    double bz_midplane( std::size_t i, std::size_t k ) const { return( val(i,k,C_B) ); }
 
     /*! \brief 场求值（输入输出均为直角坐标，单位 T）。 */
     virtual const Vec3D operator()( const Vec3D &x ) const;

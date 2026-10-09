@@ -38,18 +38,16 @@ class CCylFieldMap3D : public VectorField {
     double      _z0, _dz;        /*!< \brief z 网格起点与步长。 */
     double      _dtheta;         /*!< \brief 方位角步长 = 2*pi/nt。 */
 
-    std::vector<double> _br;     /*!< \brief Br   分量, 索引 (i,j,k)。 */
-    std::vector<double> _bt;     /*!< \brief Btheta 分量, 索引 (i,j,k)。 */
-    std::vector<double> _bz;     /*!< \brief Bz   分量, 索引 (i,j,k)。 */
+    /*! \brief 按节点交错存储的 (Br,Btheta,Bz)：_data[3*idx(i,j,k) + c]。
+     *
+     *  交错存储使一次三线性插值的 8 个节点中、z 方向相邻的两个节点落在
+     *  同一缓存行附近；若三个分量各存一个大数组，同样一次插值要跨越 3 个
+     *  相距很远的区间，访存局部性差。
+     */
+    std::vector<double> _data;
 
     std::size_t idx( std::size_t i, std::size_t j, std::size_t k ) const
     { return( (i*_nt + j)*_nz + k ); }
-
-    double component( int c, int i, int j, int k ) const
-    {
-        const std::vector<double> &v = (c == 0 ? _br : (c == 1 ? _bt : _bz));
-        return( v[idx((std::size_t)i,(std::size_t)j,(std::size_t)k)] );
-    }
 
 public:
 
