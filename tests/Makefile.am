@@ -22,6 +22,7 @@ cycl_ringmap_SOURCES = cycl_ringmap.cpp
 cycl_ringfield3d_SOURCES = cycl_ringfield3d.cpp
 cycl_fieldmap3d_SOURCES = cycl_fieldmap3d.cpp
 cycl_track_SOURCES = cycl_track.cpp
+cycl_rfgap_SOURCES = cycl_rfgap.cpp
 
 check_PROGRAMS = \
 nsimp_plasmacyl \
@@ -47,7 +48,8 @@ cycl_field3d \
 cycl_ringmap \
 cycl_ringfield3d \
 cycl_fieldmap3d \
-cycl_track
+cycl_track \
+cycl_rfgap
 
 TESTS = $(check_PROGRAMS)
 
