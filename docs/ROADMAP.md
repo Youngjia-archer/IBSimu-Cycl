@@ -322,5 +322,19 @@ IBSimu-Cycl/
   可视化脚本 `examples/cyclotron/plot_trajectory.py` 生成 `docs/img/cyclotron_orbit.png`
   （可清楚看到 **8 折扇区**引起的场强波动）。
 - [x] `make check` = **24/24**。
-- [ ] 后续（P3）：Palace RF 腔本征模适配器；`CTimeVaryingField` 接入推进器实现**时变场跟踪**；
-  柱坐标场图直转工具；更多可视化（R3）。
+### 11.5 P3 进展（RF 谐振腔）
+
+- [x] **P3-A 时变场跟踪** —— `src/cyclotron/boris.{hpp,cpp}`：`CBorisPusher` 非相对论 Boris
+  推进器，支持时变 E（`CTimeVaryingField`）与 B；调用者在每步前 `set_time`。
+  `tests/cycl_rfgap.cpp`：一维 RF 间隙（`E_x=E0·f(x)·cos(ωt+φ0)`，`∫f dx = h`）能量增益与
+  **精确渡越积分**吻合到 `1.6e-4`；相位依赖（+V 加速 / −V 减速）与横向约束已验证。
+- [x] **P3-B Palace 适配器脚手架** —— `adapters/rfcavity3d/`：`palace/cavity.json`
+  （`Problem.Type = Eigenmode` 模板）、`palace/cavity.geo`（gmsh 圆柱腔）、README（流水线与判据）。
+- [x] **P3-C 解析验证基准** —— `adapters/rfcavity3d/pillbox_tm010.py`：解析圆柱腔 TM010 模式
+  生成器（$f=\frac{c\,x_{01}}{2\pi R}$，$E_z=E_0J_0(kr)$，$B_\theta=\frac{E_0}{c}J_1(kr)$），
+  输出本项目场图格式；自检 `tests/test_pillbox_tm010.py`：频率公式、$J_0(x_{01})=0$、近壁衰减、
+  **Maxwell $|\nabla\times E|=\omega|B|$ 误差 `1.9e-4`**。Bessel 采用幂级数（机器精度）而非
+  A&S 多项式，以保证 $J_0'=-J_1$ 自洽。
+- [x] `make check` = **25/25**；CI `adapters-python` 作业覆盖两个适配器测试。
+- [ ] 后续（P4/R3）：`CTimeVaryingField` + 真实腔模式场驱动多圈加速与相位滑移；
+  Palace 装好后跑通 3D 本征模并与解析频率对比；openPMD/HDF5 与 3D 可视化增强。

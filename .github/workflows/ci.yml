@@ -74,3 +74,6 @@ jobs:
 
       - name: Test magnet3d field converter
         run: python3 adapters/magnet3d/tests/test_field_to_fieldmap3d.py
+
+      - name: Test rfcavity3d pillbox TM010
+        run: python3 adapters/rfcavity3d/tests/test_pillbox_tm010.py

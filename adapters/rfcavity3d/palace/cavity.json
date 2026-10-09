@@ -1,0 +1,43 @@
+{
+  "Problem": {
+    "Type": "Eigenmode",
+    "Verbose": 2,
+    "Output": "postpro/cavity"
+  },
+
+  "Model": {
+    "Mesh": "cavity.msh",
+    "L0": 1.0
+  },
+
+  "Domains": {
+    "Materials": [
+      {
+        "Attributes": [1],
+        "Permittivity": 1.0,
+        "Permeability": 1.0
+      }
+    ]
+  },
+
+  "Boundaries": {
+    "Conductor": [
+      { "Attributes": [2] }
+    ]
+  },
+
+  "Solver": {
+    "Order": 2,
+    "Eigenmode": {
+      "N": 4,
+      "Tol": 1.0e-8,
+      "Which": "SR"
+    },
+    "Linear": {
+      "Type": "BoomerAMG",
+      "Tol": 1.0e-10,
+      "MaxIts": 200
+    },
+    "Save": 1
+  }
+}
