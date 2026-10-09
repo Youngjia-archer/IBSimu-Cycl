@@ -19,6 +19,7 @@ solver3d_sphere_SOURCES = solver3d_sphere.cpp
 solvercyl_coax_SOURCES = solvercyl_coax.cpp
 cycl_field3d_SOURCES = cycl_field3d.cpp
 cycl_ringmap_SOURCES = cycl_ringmap.cpp
+cycl_ringfield3d_SOURCES = cycl_ringfield3d.cpp
 
 check_PROGRAMS = \
 nsimp_plasmacyl \
@@ -41,7 +42,8 @@ solver2d_coax \
 solver3d_sphere \
 solvercyl_coax \
 cycl_field3d \
-cycl_ringmap
+cycl_ringmap \
+cycl_ringfield3d
 
 TESTS = $(check_PROGRAMS)
 
