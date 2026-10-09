@@ -251,7 +251,7 @@ IBSimu-Cycl/
 
 ## 11. 进展记录
 
-### P0（进行中）
+### P0（基本完成）
 
 - [x] 定位并导入上游：`git clone https://git.code.sf.net/p/ibsimu/code`，基线提交 `09beedb`（2026-07-29，`master`），**保留完整 Git 历史与 GPL 归属**。
 - [x] 上游基线可编译：`./reconf && ./configure && make` 成功（Gtk=yes, OpenGL=no, UMFPACK=no, CSG=no）。
@@ -259,8 +259,10 @@ IBSimu-Cycl/
   - **构建系统决策**：P0 **沿用上游 autotools**（可立即构建）；GPU/Kokkos 阶段再评估是否引入 CMake。
 - [x] 工程文件：`README.md`、`NOTICE`、`THIRD_PARTY_NOTICES.md`、`.github/workflows/ci.yml`、`adapters/`、`python/ibsimu_cycl/`、`examples/cyclotron/`。
 - [x] 样本模型来源确定（见 §11.1）。
-- [ ] 许可证全文（`LICENSE` = GPL-3.0-or-later）落地 + 基线 tag + 提交。
-- [ ] GitHub 远端创建与推送（本机无 `gh`，需用户提供仓库或安装 `gh`）。
+- [x] 上游测试 **19/19 PASS**（`make check`）。
+- [x] `LICENSE`（GPL-3.0-or-later 全文）落地；基线 tag `upstream-baseline`。
+- [x] `main` 分支提交：`c6f553c`（骨架）、`e5e882c`（忽略构建产物）；`upstream-base` 分支保留原始上游。
+- [ ] GitHub 远端创建与推送（本机无 `gh`；需用户创建仓库，或用 `gh auth login` 后推送）。
 
 ### 11.1 验证基准：PSI Ring 回旋加速器（OPAL-cycl 算例）
 
