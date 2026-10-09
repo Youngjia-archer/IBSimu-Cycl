@@ -214,7 +214,9 @@ cyclotron/cycl_info.hpp \
 cyclotron/cylfmap3d.cpp \
 cyclotron/cylfmap3d.hpp \
 cyclotron/timevaryingfield.cpp \
-cyclotron/timevaryingfield.hpp
+cyclotron/timevaryingfield.hpp \
+cyclotron/ringmap.cpp \
+cyclotron/ringmap.hpp
 
 libibsimu_1_0_6dev_la_includedir=$(includedir)/ibsimu-1.0.6dev
 libibsimu_1_0_6dev_la_include_HEADERS = \

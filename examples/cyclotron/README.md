@@ -42,13 +42,22 @@ OPAL 官方源码托管在 `gitlab.psi.ch`（部分网络环境不可达）。�
 - <https://github.com/OPALX-project/Manual-old> — 手册与算例文件（`examples/cyclotron.md`、`Cyclotron/*.dat`）
 - 在线文档：<https://opalx-project.github.io/Examples/cyclotron>
 
-## 获取方式（P2 执行）
+## 数据（已导入 `data/`）
+
+`data/` 下已导入来自 OPAL 的 PSI Ring 算例数据（来源与许可见 `data/README.md`）：
+
+| 文件 | 内容 |
+| --- | --- |
+| `bfield.dat` | CERN FIELD 格式三维（中平面）磁场图，141 × 135 网格，1/8 扇区，1.2 MB |
+| `rffield1.dat` / `rffield2.dat` | 一维径向 RF 场剖面 |
+| `cyclotron1.in` / `cyclotron2.in` | OPAL 输入文件（参考） |
+
+复现来源：
 
 ```bash
-# 待办：P2 阶段将 bfield.dat / rffield*.dat / dist*.dat 等导入本目录
-git clone --depth 1 https://github.com/OPALX-project/OPAL.git /tmp/opal
-ls /tmp/opal/samples/cyclotron/
+git clone --depth 1 https://github.com/OPALX-project/Manual-old /tmp/opal-manual
+ls /tmp/opal-manual/examples/Cyclotron/
 ```
 
-> 注意：OPAL 与 IBSimu 均为 GPL 系许可证；我们只使用其**算例数据**作为验证基准，
-> 不使用其代码。数据来源会在此处及 `THIRD_PARTY_NOTICES.md` 中注明。
+> OPAL 与 IBSimu 均为 GPL 系许可证；我们只使用其**算例数据**作为验证基准，不使用其代码。
+> 来源、格式说明与许可见 `data/README.md` 与 `THIRD_PARTY_NOTICES.md`。

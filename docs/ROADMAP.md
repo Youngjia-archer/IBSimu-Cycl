@@ -286,3 +286,18 @@ IBSimu-Cycl/
 - [x] 接入 autotools（库 + 测试）；CI 拆分为 **headless** 与 **默认 GUI** 两个作业。
 - [ ] 待办：`CFieldMap3D`（笛卡尔、**每轴独立步长**）；OPAL `bfield.dat` 解析器（归入 P2）；
   openPMD/HDF5 输出（P6）；最小端到端 Demo（导入 B-map → 3D 跟踪 → 可视化）。
+
+### 11.3 P2 进展（三维磁铁磁场）
+
+- [x] **OPAL/PSI "RING" 磁场图解析器** `read_ring_field_map()`（`src/cyclotron/ringmap.{hpp,cpp}`）：
+  完整实现 CERN "FIELD" 格式（头部 4 数 + 标签/信息块 + 按半径的 4 数组数据块 + `LREC=` 定位），
+  支持 `dr/dtet` 负值取倒数、kG→T 缩放、`nsymmetry` 折旋转复制为满 360°。
+- [x] 输出为 `CCylFieldMap3D`（满 360°，`nz=1` 中平面 Bz），复用已有柱坐标插值。
+- [x] **真实数据验证**：`examples/cyclotron/data/bfield.dat`（PSI Ring，141×135，1.2 MB）
+  → `nrad=141, ntet=135, rmin=1900 mm, dr=20 mm, dtet=1/3°`；
+  **`Bz(r=3.1 m)=1.526 T`**（物理合理）、峰值 2.095 T、8 折复制一致。
+  测试 `tests/cycl_ringmap.cpp` 全通过（`make check` = **21/21**）。
+- [x] 算例数据入库（`examples/cyclotron/data/`，来源与许可见其 `README.md`）。
+- [x] **CI 全绿**：headless 与 default-GUI 两作业均通过。
+- [ ] 待办：离面 (Br, Bθ) 重建（OPAL 用中平面展开 + θ 导数）；
+  **Elmer FEM 适配器**（几何 → 3D B-map）；`CFieldMap3D`（笛卡尔每轴步长）。

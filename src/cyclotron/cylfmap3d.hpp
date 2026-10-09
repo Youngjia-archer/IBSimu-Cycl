@@ -69,6 +69,10 @@ public:
     std::size_t size_theta() const { return( _nt ); }
     std::size_t size_z() const { return( _nz ); }
     double dtheta() const { return( _dtheta ); }
+    double r0() const { return( _r0 ); }
+    double dr() const { return( _dr ); }
+    double z0() const { return( _z0 ); }
+    double dz() const { return( _dz ); }
 
     /*! \brief 设置节点 (i,j,k) 的 (Br,Btheta,Bz)。 */
     void set_value( std::size_t i, std::size_t j, std::size_t k,
