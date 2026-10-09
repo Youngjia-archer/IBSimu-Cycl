@@ -129,6 +129,25 @@ python3 examples/cyclotron/plot_trajectory.py cycl_track.csv -o docs/img/cyclotr
 > Boris 推进器范围；Part B 因此采用**整体缩放**模型（保留 8 折扇形与径向结构）。
 > 相对论推进器列入后续工作。
 
+## 相对论推进器与真实场强下的 PSI Ring 轨道（F1）
+
+`CBorisPusher` 现支持**相对论**模式（`set_relativistic(true)`，在 $u=\gamma v$ 空间做磁场旋转）。
+`tests/cycl_relativistic.cpp` 验证：
+
+| 校验项 | 结果 |
+| --- | --- |
+| 相对论回旋频率 $\omega_c=qB/(\gamma m)$ | 误差 `1.3e-5` |
+| 静磁场中 $\gamma$ 守恒 | `3.7e-16`（机器精度） |
+| 非相对论推进器（同速）对比 | $\omega$ 偏高 $\gamma$ 倍（ratio = 1.2000） |
+| **真实 PSI Ring 场强**（$r=3.3$ m，$\langle B\rangle=0.669$ T） | $\gamma=1.224$，$\beta=0.577$，**KE = 210 MeV** |
+| 轨道有界性与回路频率 | $r\in[2.94,3.56]$ m；$f_{rev}$ 与 $q\langle B\rangle/(2\pi\gamma m)$ 差 **2.0%** |
+
+![real orbit](docs/img/cyclotron_real_orbit.png)
+
+图中可见真实 PSI Ring 的 **8 折扇形结构**导致的轨道扇贝形起伏（$\gamma$ 保持恒定）。
+
+> 这解除了 P4 的限制：**真实场强下的 PSI Ring 现在可以直接跟踪**，无需整体缩放。
+
 ## 许可证
 
 本项目为 IBSimu 的派生作品，整体以 **GNU GPL v3.0-or-later** 发布。

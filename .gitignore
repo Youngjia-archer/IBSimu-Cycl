@@ -59,6 +59,7 @@ src/cyclotron/.deps
 /cycl_track.vtk
 /cycl_accel_locked.csv
 /cycl_accel_real.csv
+/cycl_relativistic.csv
 
 # autotools / build outputs
 compile

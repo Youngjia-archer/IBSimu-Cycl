@@ -24,6 +24,7 @@ cycl_fieldmap3d_SOURCES = cycl_fieldmap3d.cpp
 cycl_track_SOURCES = cycl_track.cpp
 cycl_rfgap_SOURCES = cycl_rfgap.cpp
 cycl_accel_SOURCES = cycl_accel.cpp
+cycl_relativistic_SOURCES = cycl_relativistic.cpp
 
 check_PROGRAMS = \
 nsimp_plasmacyl \
@@ -51,7 +52,8 @@ cycl_ringfield3d \
 cycl_fieldmap3d \
 cycl_track \
 cycl_rfgap \
-cycl_accel
+cycl_accel \
+cycl_relativistic
 
 TESTS = $(check_PROGRAMS)
 

@@ -350,5 +350,18 @@ IBSimu-Cycl/
 - [x] 可视化 `examples/cyclotron/plot_acceleration.py` → `docs/img/cyclotron_acceleration.png`。
 - [x] `make check` = **26/26**。
 - [ ] 限制：真实 PSI Ring 绝对场强对应 β≈0.6，需**相对论 Boris**；本 Demo 用整体缩放模型。
-- [ ] 后续（P4 余项 / R3 / P5）：相对论推进器；真实 RF 腔模式场（Palace）驱动；
-  注入/引出；openPMD/HDF5 与 3D 可视化；并行化与 GPU（R1）。
+### 11.7 F1 进展（相对论推进器与真实场强轨道）
+
+- [x] `CBorisPusher` 增加**相对论模式**（`set_relativistic`；在 $u=\gamma v$ 空间做磁场旋转，
+  E/B 仍可空；与非相对论共用同一接口）。静磁场下 $|u|$、$\gamma$ 精确守恒。
+- [x] `tests/cycl_relativistic.cpp`：
+  - 相对论回旋频率 $\omega=qB/(\gamma m)$：误差 `1.3e-5`；$\gamma$ 漂移 `3.7e-16`
+  - 非相对论对比：同速下 $\omega$ 高 $\gamma$ 倍（ratio = 1.2000）
+  - **真实 PSI Ring 场强**（$r=3.3$ m，$\langle B\rangle=0.669$ T）：$\gamma=1.224$、
+    $\beta=0.577$、**KE = 210 MeV**、轨道有界（$r\in[2.94,3.56]$ m）、$\gamma$ 守恒 `3.6e-16`、
+    $f_{rev}$ 与 $q\langle B\rangle/(2\pi\gamma m)$ 差 **1.98%**
+- [x] 可视化 `examples/cyclotron/plot_relativistic_orbit.py` → `docs/img/cyclotron_real_orbit.png`
+  （可见 8 折扇形导致的扇贝形轨道）。
+- [x] `make check` = **27/27**。
+- [ ] 后续：P4 的 Part B 可改用**真实场强**（无需缩放）；注入/引出；R1 并行化/GPU（P5）；
+  R3（openPMD/HDF5 + 3D 交互可视化）。
