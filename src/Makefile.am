@@ -1,9 +1,14 @@
 lib_LTLIBRARIES = libibsimu-1.0.6dev.la
 
-libibsimu_1_0_6dev_la_LDFLAGS = -version-info 0:1:0
+# 注意：automake 为 libtool 库生成的链接命令**不包含** AM_LDFLAGS，因此
+# 目标相关的链接参数（如 CUDA 的 -L）必须放在 <target>_LDFLAGS 里。
+libibsimu_1_0_6dev_la_LDFLAGS = -version-info 0:1:0 $(CUDA_LDFLAGS)
 
-AM_LDFLAGS = -Wall @rdynamic_flag@ @lt_enable_auto_import@ $(OPENMP_CXXFLAGS)
-AM_CPPFLAGS = -Wall -I$(srcdir)/cyclotron $(OPENMP_CXXFLAGS)
+AM_LDFLAGS = -Wall @rdynamic_flag@ @lt_enable_auto_import@ $(OPENMP_CXXFLAGS) $(CUDA_LDFLAGS)
+AM_CPPFLAGS = -Wall -I$(srcdir)/cyclotron $(CUDA_CPPFLAGS) $(OPENMP_CXXFLAGS)
+
+# 可选的 CUDA GPU 后端（NVRTC + Driver API）；未探测到 CUDA 时 CUDA_LIBS 为空
+libibsimu_1_0_6dev_la_LIBADD = $(CUDA_LIBS)
 
 libibsimu_1_0_6dev_la_SOURCES = \
 axisymmetricvectorfield.cpp \
@@ -224,7 +229,10 @@ cyclotron/fieldmap3d.hpp \
 cyclotron/boris.cpp \
 cyclotron/boris.hpp \
 cyclotron/ensembletracker.cpp \
-cyclotron/ensembletracker.hpp
+cyclotron/ensembletracker.hpp \
+cyclotron/cuda/gputracker.cpp \
+cyclotron/cuda/gputracker.hpp \
+cyclotron/cuda/gpu_kernels.cu.h
 
 libibsimu_1_0_6dev_la_includedir=$(includedir)/ibsimu-1.0.6dev
 libibsimu_1_0_6dev_la_include_HEADERS = \

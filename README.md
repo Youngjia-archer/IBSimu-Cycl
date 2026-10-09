@@ -189,8 +189,35 @@ python3 examples/cyclotron/plot_trajectory.py cycl_track.csv -o docs/img/cyclotr
 配合 OpenMP，相对原始实现的总加速约 **20–28×**。场求值基准见
 `tests/cycl_fieldbench.cpp`（`make check` 会打印 Mevals/s）。
 
-> 下一步（R1-②/③）：MPI + hypre 区域分解（多节点）、GPU 后端（Kokkos 优先，
-> 一套代码覆盖 CUDA/HIP/SYCL，当前只考虑 NVIDIA）。
+> 后续（R1-②）：MPI + hypre 区域分解（多节点）；GPU 端支持时变/射频场
+> （当前 GPU 后端只处理静态磁场）。
+
+### GPU 后端（R1-③，CUDA）
+
+`CGpuEnsembleTracker` 把整个系综放到 GPU 上推进：场数据**一次性上传**显存（之后
+每步不再传场），每个 GPU 线程跑完一个粒子的全部时间步（没有"每步启动 kernel"的
+开销），粒子状态按 SoA 传输。
+
+构建**不需要 nvcc**：内核源码以字符串内嵌，由 NVRTC 在运行期编译为 PTX，再用
+CUDA Driver API 加载。
+
+> 为什么不用 nvcc 编译 `.cu`？libtool 无法推断 nvcc 的配置，加 `--tag=CXX` 后会强制
+> 注入 nvcc 不接受的裸 `-fPIC`；改用 `-Xcompiler -fPIC` 又会被重排到命令首部。
+> NVRTC 方案完全不触自动 libtool，详见 `src/cyclotron/cuda/gpu_kernels.cu.h`。
+
+`configure` 会自动探测 CUDA（`--with-cuda=DIR` / `--without-cuda`）。**未启用时
+`available()` 返回 false、测试自动 `[SKIP]`**，因此无 GPU 的环境（含 CI）不受影响。
+
+真实 PSI Ring 场图，N=100000 粒子 × 200 步：
+
+| 后端 | 时间 | 吞吐 | 相对单线程 |
+| --- | --- | --- | --- |
+| CPU 单线程 | 2.30 s | 8.7 Mev/s | 1× |
+| CPU 12 线程（OpenMP） | 0.32 s | 62 Mev/s | 7.1× |
+| GPU（RTX 2060 Max-Q） | **0.073 s** | **275 Mev/s** | **31.6×** |
+
+GPU 结果与 CPU 一致到机器精度（400 步后 `dx = 1.4e-14 m`、`dv/v = 3.8e-15`），
+γ 逐粒子相对漂移 `2.0e-15`。该场景下 kernel 占 97%，数据传输仅 2.6%。
 
 ## 许可证
 

@@ -52,6 +52,69 @@ dnl ---------------------------------
 AC_OPENMP
 
 dnl ---------------------------------
+dnl CUDA GPU backend (IBSimu-Cycl: optional, NVRTC + Driver API)
+dnl
+dnl   --without-cuda    禁用
+dnl   --with-cuda=DIR   指定 CUDA 前缀（默认自动探测 /opt/cuda, /usr/local/cuda, /usr）
+dnl
+dnl   构建期只需要 CUDA 头文件与 libnvrtc/libcuda，**不需要 nvcc**：
+dnl   内核源码以字符串内嵌，由 NVRTC 在运行期编译（见 src/cyclotron/cuda/）。
+dnl ---------------------------------
+AC_ARG_WITH([cuda],
+    [AS_HELP_STRING([--with-cuda@<:@=DIR@:>@],
+                    [CUDA toolkit prefix for the optional GPU backend (auto-detected)])],
+    [], [with_cuda=auto])
+
+have_cuda=no
+CUDA_CPPFLAGS=""
+CUDA_LDFLAGS=""
+CUDA_LIBS=""
+
+if test "x$with_cuda" != "xno"; then
+    if test "x$with_cuda" = "xauto" || test "x$with_cuda" = "xyes"; then
+        cuda_candidates="/opt/cuda /usr/local/cuda /usr"
+    else
+        cuda_candidates="$with_cuda"
+    fi
+
+    for cuda_p in $cuda_candidates; do
+        for cuda_inc in "$cuda_p/include" "$cuda_p/targets/x86_64-linux/include" \
+                        "$cuda_p/targets/aarch64-linux/include"; do
+            if test -f "$cuda_inc/nvrtc.h" && test -f "$cuda_inc/cuda.h"; then
+                for cuda_libd in "$cuda_p/lib64" "$cuda_p/lib" \
+                                 "$cuda_p/targets/x86_64-linux/lib" \
+                                 "$cuda_p/targets/aarch64-linux/lib"; do
+                    if test -f "$cuda_libd/libnvrtc.so" || test -f "$cuda_libd/libnvrtc.a"; then
+                        have_cuda=yes
+                        CUDA_CPPFLAGS="-I$cuda_inc"
+                        CUDA_LDFLAGS="-L$cuda_libd"
+                        CUDA_LIBS="-lnvrtc -lcuda"
+                        break
+                    fi
+                done
+            fi
+            if test "x$have_cuda" = "xyes"; then break; fi
+        done
+        if test "x$have_cuda" = "xyes"; then break; fi
+    done
+fi
+
+if test "x$have_cuda" = "xyes"; then
+    AC_DEFINE([IBSIMU_CYCL_HAVE_CUDA], [1],
+              [Define to 1 if the optional CUDA GPU backend is enabled])
+    AC_MSG_NOTICE([CUDA GPU backend: enabled ($CUDA_CPPFLAGS $CUDA_LDFLAGS $CUDA_LIBS)])
+else
+    if test "x$with_cuda" = "xno"; then
+        AC_MSG_NOTICE([CUDA GPU backend: disabled by --without-cuda])
+    else
+        AC_MSG_NOTICE([CUDA GPU backend: disabled (toolkit not found; use --with-cuda=DIR)])
+    fi
+fi
+AC_SUBST([CUDA_CPPFLAGS])
+AC_SUBST([CUDA_LDFLAGS])
+AC_SUBST([CUDA_LIBS])
+
+dnl ---------------------------------
 dnl pkgconfig
 dnl ---------------------------------
 

@@ -462,3 +462,60 @@ KE=210.14 MeV、f_rev 误差 1.976%、Bz(中平面)=1.557581 T 均完全一致�
 小场图 6.2× 受本机 6 物理核限制。
 
 - [x] `make check` = **29/29**。
+
+### 11.10 R1-③ 进展（GPU 后端：CUDA + NVRTC）
+
+- [x] 新增 `ibsimu_cycl::CGpuEnsembleTracker`（`src/cyclotron/cuda/`）：粒子维
+  并行的 GPU 后端，静态磁场下推进整个系综。
+  **实现方式决策**：采用**直接 CUDA 实现**而非 Kokkos。Kokkos 需要先自行构建
+  （CMake）并与 autotools 共存，且用户已确认当前只考虑 NVIDIA；若将来需要覆盖
+  AMD/Intel，可再迁移到 Kokkos（接口不变）。
+- [x] **构建期不需要 nvcc**：内核源码以字符串内嵌（`gpu_kernels.cu.h`），
+  运行期由 NVRTC 编译为 PTX，再用 CUDA Driver API 加载。
+
+  **为何不用 nvcc 编译 .cu？（实测结论，已尝试并放弃）**
+  automake 本身能接受 `.cu` + 自定义后缀规则，但 libtool 会：
+    1. 无法推断 nvcc 的配置 → 必须加 `--tag=CXX`；
+    2. 加上 tag 后会强制注入 `-fPIC -DPIC`，而 **nvcc 不接受裸 `-fPIC`**（fatal）；
+    3. 改用 `-Xcompiler -fPIC` 传参又会被 libtool 重排到命令首部
+       （变成 `-fPIC nvcc -c ...`）。
+  要绕开需额外包装脚本，代价高于收益。NVRTC 方案完全不触自动 libtool：
+  构建期只需要 CUDA 头文件与 `libnvrtc`/`libcuda`。
+
+- [x] 场数据（`CRingFieldMap3D::raw_data()` 的**交错节点表**）一次性上传显存，
+  之后每步不再传场；粒子状态按 SoA 传输（合并访存）；每个 GPU 线程一次跑完
+  一个粒子的全部时间步，没有“每步启动 kernel”的开销。
+- [x] 内核中的场求值与 Boris 步与 CPU 端**逐行对应**（`--fmad=false`），
+  因此可直接交叉验证。
+- [x] **优雅降级**：未探测到 CUDA 或 `--without-cuda` 时 `available()` 返回 false，
+  测试输出 `[SKIP]` 并以成功退出 → CI（无 GPU）不受影响（已实测）。
+- [x] `configure.ac` 增加 CUDA 探测（`--with-cuda=DIR` / `--without-cuda`，默认自动
+  探测 `/opt/cuda`、`/usr/local/cuda`、`/usr`）。
+
+  **踩坑（重要）**：automake 为 libtool 库生成的链接命令**不包含** `AM_LDFLAGS`
+  （只含 `$(target)_LDFLAGS)` 与 `$(LDFLAGS)`），因此 `-L` 这类目标相关参数必须放在
+  `<target>_LDFLAGS` 里。（顺着这个坑才发现之前放在 `AM_LDFLAGS` 里的
+  `$(OPENMP_CXXFLAGS)` 实际上一直没生效——当时恰好不影响，因为 .so 允许未定义符号。）
+
+- [x] `tests/cycl_cuda_tracker.cpp`：
+
+  | 校验项 | 结果 |
+  | --- | --- |
+  | 10 步后 GPU vs CPU | `dx = 4.4e-16 m`，`dv/v = 3.4e-16`（机器精度） |
+  | 400 步后 GPU vs CPU | `dx = 1.4e-14 m`，`dv/v = 3.8e-15` |
+  | γ 守恒（400 步，逐粒子相对漂移） | GPU `2.0e-15`（CPU `1.8e-15`，同一量级） |
+
+  性能（真实 PSI Ring，N=100000 粒子 × 200 步）：
+
+  | 后端 | 时间 | 吞吐 | 相对 |
+  | --- | --- | --- | --- |
+  | CPU 单线程 | 2.30 s | 8.7 Mev/s | 1× |
+  | CPU 12 线程 (OpenMP) | 0.32 s | 62 Mev/s | 7.1× |
+  | **GPU (RTX 2060 Max-Q)** | **0.073 s** | **275 Mev/s** | **31.6× / 4.4×（vs 12 线程）** |
+
+  kernel 占 97%（数据传输仅 2.6%）——说明该场景是计算受限，系综越大优势越明显。
+  注：本机是消费级 GPU（FP64 吞吐仅为 FP32 的 1/32）；专业/数据中心 GPU 的
+  FP64 比例高得多，预期加速更明显。
+
+- [x] `make check` = **30/30**。
+- [ ] 后续：GPU 端支持时变/射频场（当前仅静态磁场）；多 GPU / 多节点（MPI + hypre）。

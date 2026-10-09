@@ -78,6 +78,16 @@ public:
     /*! \brief 中平面网格点的 Bz 值。 */
     double bz_midplane( std::size_t i, std::size_t k ) const { return( val(i,k,C_B) ); }
 
+    /*! \brief 交错节点数据的只读裸指针（每节点 component_count() 个 double）。
+     *
+     *  供 GPU 后端一次性上传显存使用；CPU 端请优先使用 operator()。
+     *  布局固定为：每节点依次为 b, dbr, dbth, tb, dtrb, dttb。
+     */
+    const double *raw_data() const { return( _data.data() ); }
+
+    /*! \brief 每个节点的 double 个数（= 6）。 */
+    static std::size_t component_count() { return( (std::size_t)C_NCOMP ); }
+
     /*! \brief 场求值（输入输出均为直角坐标，单位 T）。 */
     virtual const Vec3D operator()( const Vec3D &x ) const;
 };
