@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-headless:
-    name: Build & test (headless)
+    name: "Build & test (headless)"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,7 +34,7 @@ jobs:
         run: make check
 
   build-gui:
-    name: Build & test (default GUI)
+    name: "Build & test (default GUI)"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
