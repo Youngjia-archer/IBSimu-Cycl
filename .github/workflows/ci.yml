@@ -50,7 +50,7 @@ jobs:
       - name: Regenerate configure (autotools)
         run: ./reconf
 
-      - name: Configure (default: GTK GUI enabled)
+      - name: "Configure (default: GTK GUI enabled)"
         run: ./configure
 
       - name: Build
