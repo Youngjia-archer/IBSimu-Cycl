@@ -84,6 +84,30 @@ make check
 物理验证基准，包含真实三维磁场图与 RF 场图。详见
 [`examples/cyclotron/README.md`](examples/cyclotron/README.md)。
 
+## 端到端 Demo：真实磁场中的三维跟踪
+
+`tests/cycl_track.cpp` 演示完整链路：读取真实 **PSI Ring** 磁场图（`bfield.dat`）
+→ `CRingFieldMap3D` 三维场 → Boris 推动器积分质子运动 → 校验回旋频率 → 导出轨迹。
+
+```bash
+./reconf && ./configure && make -j"$(nproc)"
+make -C tests cycl_track && ./tests/cycl_track        # 写出 cycl_track.csv / .vtk
+python3 examples/cyclotron/plot_trajectory.py cycl_track.csv -o docs/img/cyclotron_orbit.png
+```
+
+结果（r = 3.3 m）：
+
+| 量 | 数值 |
+| --- | --- |
+| 局部磁场 | `B = 1.5576 T` |
+| 回旋频率（解析 `qB/m`） | `1.491981e8 rad/s` |
+| 回旋频率（测量） | `1.492997e8 rad/s`（相对误差 **6.8e-4**） |
+| 速率守恒（静磁场） | 相对漂移 `1.6e-15`（机器精度） |
+
+![cyclotron orbit](docs/img/cyclotron_orbit.png)
+
+轨迹同时输出 `cycl_track.vtk`（ParaView 可直接打开）与 `cycl_track.csv`。
+
 ## 许可证
 
 本项目为 IBSimu 的派生作品，整体以 **GNU GPL v3.0-or-later** 发布。

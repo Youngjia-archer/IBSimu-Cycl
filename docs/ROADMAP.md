@@ -315,5 +315,12 @@ IBSimu-Cycl/
   - `tests/test_field_to_fieldmap3d.py`：自检通过（均匀场精确、线性场误差 0.9%）。
   > Elmer / gmsh 需用户自行安装（本机未装）；适配器为**松耦合文件交换**，不链接其代码。
 - [x] `make check` = **23/23**；CI 三作业：headless / default-GUI / python-adapter。
-- [ ] 后续（P3）：Palace RF 腔本征模适配器；柱坐标场图直转；
-  最小端到端 Demo（真实 B-map → 3D 跟踪 → 可视化 / 回旋频率验证）。
+- [x] **端到端 Demo（D1）** —— `tests/cycl_track.cpp`：真实 PSI Ring 磁场 → `CRingFieldMap3D`
+  三维场 → Boris 推动器 → 校验回旋频率（测得 `1.492997e8` vs 解析 `1.491981e8 rad/s`，
+  相对误差 **6.8e-4**）+ 速率守恒（`1.6e-15`，机器精度）+ 中平面约束；
+  输出 `cycl_track.csv` 与 `cycl_track.vtk`（ParaView 可读）。
+  可视化脚本 `examples/cyclotron/plot_trajectory.py` 生成 `docs/img/cyclotron_orbit.png`
+  （可清楚看到 **8 折扇区**引起的场强波动）。
+- [x] `make check` = **24/24**。
+- [ ] 后续（P3）：Palace RF 腔本征模适配器；`CTimeVaryingField` 接入推进器实现**时变场跟踪**；
+  柱坐标场图直转工具；更多可视化（R3）。

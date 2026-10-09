@@ -21,6 +21,7 @@ cycl_field3d_SOURCES = cycl_field3d.cpp
 cycl_ringmap_SOURCES = cycl_ringmap.cpp
 cycl_ringfield3d_SOURCES = cycl_ringfield3d.cpp
 cycl_fieldmap3d_SOURCES = cycl_fieldmap3d.cpp
+cycl_track_SOURCES = cycl_track.cpp
 
 check_PROGRAMS = \
 nsimp_plasmacyl \
@@ -45,7 +46,8 @@ solvercyl_coax \
 cycl_field3d \
 cycl_ringmap \
 cycl_ringfield3d \
-cycl_fieldmap3d
+cycl_fieldmap3d \
+cycl_track
 
 TESTS = $(check_PROGRAMS)
 

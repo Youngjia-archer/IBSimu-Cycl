@@ -54,6 +54,10 @@ build/
 compile_commands.json
 src/cyclotron/.deps
 
+# demo outputs (written into CWD when running ./tests/cycl_track)
+/cycl_track.csv
+/cycl_track.vtk
+
 # autotools / build outputs
 compile
 test-driver
