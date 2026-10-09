@@ -57,6 +57,8 @@ src/cyclotron/.deps
 # demo outputs (written into CWD when running ./tests/cycl_track)
 /cycl_track.csv
 /cycl_track.vtk
+/cycl_accel_locked.csv
+/cycl_accel_real.csv
 
 # autotools / build outputs
 compile

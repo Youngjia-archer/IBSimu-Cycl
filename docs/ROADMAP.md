@@ -336,5 +336,19 @@ IBSimu-Cycl/
   **Maxwell $|\nabla\times E|=\omega|B|$ 误差 `1.9e-4`**。Bessel 采用幂级数（机器精度）而非
   A&S 多项式，以保证 $J_0'=-J_1$ 自洽。
 - [x] `make check` = **25/25**；CI `adapters-python` 作业覆盖两个适配器测试。
-- [ ] 后续（P4/R3）：`CTimeVaryingField` + 真实腔模式场驱动多圈加速与相位滑移；
-  Palace 装好后跑通 3D 本征模并与解析频率对比；openPMD/HDF5 与 3D 可视化增强。
+### 11.6 P4 进展（多圈加速与相位滑移）
+
+- [x] `tests/cycl_accel.cpp`：
+  - **Part A（均匀场，可严格验证）** —— **两个对径 dee 间隙**。
+    **关键发现**：单间隙时切向冲量只使轨道**中心漂移**、半径不增长；
+    对径双间隙才使中心漂移抵消、轨道**同心外扩**（与真实回旋加速器一致）。
+    - `ΔE/turn = 2 q V0 cos φ`（测得 99.76 vs 100 keV，差 0.24% 为渡越因子）
+    - `ω_RF = ω_c` → **相位锁定**（`max|φ| < 1e-14 rad`）
+    - `ω_RF = 0.98 ω_c` → **相位滑移 −0.12566 rad/圈**（与 `−2π·0.02` 精确一致）
+    - 轨道半径按 `r = √(2KE/m)/ω_c` 外扩（`0.198 → 0.245 m`）
+  - **Part B（真实场图整体缩放）** —— 测得 `T_rev`、能量增益与相位演化（`−0.113 rad/圈`）。
+- [x] 可视化 `examples/cyclotron/plot_acceleration.py` → `docs/img/cyclotron_acceleration.png`。
+- [x] `make check` = **26/26**。
+- [ ] 限制：真实 PSI Ring 绝对场强对应 β≈0.6，需**相对论 Boris**；本 Demo 用整体缩放模型。
+- [ ] 后续（P4 余项 / R3 / P5）：相对论推进器；真实 RF 腔模式场（Palace）驱动；
+  注入/引出；openPMD/HDF5 与 3D 可视化；并行化与 GPU（R1）。

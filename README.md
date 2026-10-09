@@ -108,6 +108,27 @@ python3 examples/cyclotron/plot_trajectory.py cycl_track.csv -o docs/img/cyclotr
 
 轨迹同时输出 `cycl_track.vtk`（ParaView 可直接打开）与 `cycl_track.csv`。
 
+## 多圈加速与相位滑移（P4）
+
+`tests/cycl_accel.cpp` 用**局域 RF 间隙**（`CTimeVaryingField`）+ 磁场做多圈加速：
+
+- **Part A（均匀场，可严格验证）**：两个**对径 dee 间隙**
+  - 能量增益 `ΔE/turn = 2 q V0 cos φ`（测得 99.76 vs 100 keV，差 0.24% 渡越因子）
+  - `ω_RF = ω_c` → **相位锁定**（`max|φ| < 1e-14 rad`）
+  - `ω_RF = 0.98 ω_c` → **相位滑移 −0.12566 rad/圈**（与 `−2π·0.02` 精确一致）
+  - 轨道半径按 `r = √(2KE/m)/ω_c` 外扩（`0.198 → 0.245 m`）
+- **Part B（真实场图，整体缩放）**：测得回路周期、能量增益与相位演化（`−0.113 rad/圈`）
+
+![cyclotron acceleration](docs/img/cyclotron_acceleration.png)
+
+> **关于单间隙**：只有单个间隙时，切向冲量只会使**轨道中心漂移**而半径不增长；
+> 必须用两个**对径**间隙（dee 的两侧）才能让中心漂移相互抵消、轨道同心外扩——
+> 这与真实回旋加速器一致。
+>
+> ⚠️ 真实 PSI Ring 的绝对场强（~1.5 T）对应相对论速度（β≈0.6），超出当前**非相对论**
+> Boris 推进器范围；Part B 因此采用**整体缩放**模型（保留 8 折扇形与径向结构）。
+> 相对论推进器列入后续工作。
+
 ## 许可证
 
 本项目为 IBSimu 的派生作品，整体以 **GNU GPL v3.0-or-later** 发布。
