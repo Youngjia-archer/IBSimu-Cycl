@@ -46,6 +46,24 @@ tests/*.ps
 tests/*.pdf
 tests/*_vout.txt
 
+# IBSimu-Cycl additions
+*.pyc
+__pycache__/
+build/
+.cache/
+compile_commands.json
+src/cyclotron/.deps
+
+# autotools / build outputs
+compile
+test-driver
+stamp-h1
+*.trs
+*.log
+src/*.la
+tests/libibsimutest.la
+tests/*.dat
+
 
 
 

@@ -3,7 +3,7 @@ lib_LTLIBRARIES = libibsimu-1.0.6dev.la
 libibsimu_1_0_6dev_la_LDFLAGS = -version-info 0:1:0
 
 AM_LDFLAGS = -Wall @rdynamic_flag@ @lt_enable_auto_import@
-AM_CPPFLAGS = -Wall
+AM_CPPFLAGS = -Wall -I$(srcdir)/cyclotron
 
 libibsimu_1_0_6dev_la_SOURCES = \
 axisymmetricvectorfield.cpp \
@@ -208,7 +208,9 @@ vectorfield.hpp \
 vtriangle.cpp \
 vtriangle.hpp \
 xygraph.cpp \
-xygraph.hpp
+xygraph.hpp \
+cyclotron/cycl_info.cpp \
+cyclotron/cycl_info.hpp
 
 libibsimu_1_0_6dev_la_includedir=$(includedir)/ibsimu-1.0.6dev
 libibsimu_1_0_6dev_la_include_HEADERS = \

@@ -1,0 +1,23 @@
+IBSimu-Cycl
+===========
+
+This project is a derivative work based on IBSimu (Ion Beam Simulator).
+
+Upstream: IBSimu
+  Homepage : https://ibsimu.sourceforge.net/
+  Source   : https://git.code.sf.net/p/ibsimu/code
+  Baseline : commit 09beedb (2026-07-29), branch "master"
+  License  : GNU General Public License v2.0 or later (see COPYING)
+
+  Copyright (c) 2004-2013 Taneli Kalvas <taneli.kalvas@jyu.fi> and
+  The Regents of the University of California, through Lawrence Berkeley
+  National Laboratory (subject to receipt of any required approvals from
+  the U.S. Dept. of Energy). All rights reserved.
+
+Derivative work: IBSimu-Cycl
+  License : GNU General Public License v3.0 or later (see LICENSE)
+  The upstream "GPL-2.0-or-later" grant permits redistribution of the
+  combined work under GPL-3.0-or-later.
+
+  The original copyright notices and license headers in all upstream
+  source files have been preserved.
