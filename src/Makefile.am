@@ -5,7 +5,7 @@ lib_LTLIBRARIES = libibsimu-1.0.6dev.la
 libibsimu_1_0_6dev_la_LDFLAGS = -version-info 0:1:0 $(CUDA_LDFLAGS)
 
 AM_LDFLAGS = -Wall @rdynamic_flag@ @lt_enable_auto_import@ $(OPENMP_CXXFLAGS) $(CUDA_LDFLAGS)
-AM_CPPFLAGS = -Wall -I$(srcdir)/cyclotron $(CUDA_CPPFLAGS) $(OPENMP_CXXFLAGS)
+AM_CPPFLAGS = -Wall -I$(srcdir)/cyclotron -I$(srcdir)/io $(CUDA_CPPFLAGS) $(OPENMP_CXXFLAGS)
 
 # 可选的 CUDA GPU 后端（NVRTC + Driver API）；未探测到 CUDA 时 CUDA_LIBS 为空
 libibsimu_1_0_6dev_la_LIBADD = $(CUDA_LIBS)
@@ -232,7 +232,9 @@ cyclotron/ensembletracker.cpp \
 cyclotron/ensembletracker.hpp \
 cyclotron/cuda/gputracker.cpp \
 cyclotron/cuda/gputracker.hpp \
-cyclotron/cuda/gpu_kernels.cu.h
+cyclotron/cuda/gpu_kernels.cu.h \
+io/vtkwriter.cpp \
+io/vtkwriter.hpp
 
 libibsimu_1_0_6dev_la_includedir=$(includedir)/ibsimu-1.0.6dev
 libibsimu_1_0_6dev_la_include_HEADERS = \

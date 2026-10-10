@@ -37,6 +37,26 @@ double CBorisPusher::gamma( const Vec3D &v ) const
     return( 1.0/std::sqrt(1.0 - b2) );
 }
 
+void CBorisPusher::initialize( const VectorField *E, const VectorField *B,
+                               const Vec3D &x, Vec3D &v, double dt ) const
+{
+    const double qm = _q/_m;
+
+    Vec3D e = E ? (*E)( x ) : Vec3D( 0.0, 0.0, 0.0 );
+    Vec3D b = B ? (*B)( x ) : Vec3D( 0.0, 0.0, 0.0 );
+    Vec3D a = e + crossp( v, b );                 // 未乘 q/m 的加速度方向
+
+    if( !_relativistic ) {
+        v = v - a*(qm*dt/2.0);
+        return;
+    }
+
+    // 相对论：在 u = gamma*v 空间做半步反踢
+    Vec3D  u = v*gamma( v ) - a*(qm*dt/2.0);
+    double gn = std::sqrt( 1.0 + (u*u)/(CLIGHT*CLIGHT) );
+    v = u*(1.0/gn);
+}
+
 void CBorisPusher::step( const VectorField *E, const VectorField *B,
                          Vec3D &x, Vec3D &v, double dt ) const
 {

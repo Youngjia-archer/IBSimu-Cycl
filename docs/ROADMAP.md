@@ -794,3 +794,42 @@ for( size_t i = 0; i < 8; i++ ) {
 - **先查证接口是否已存在，再设计新参数**——本次差点为已具备的能力另造一套；
 - **两个独立实现互相印证**：相对论旋转向量的 $1/\gamma$ 因子最初被漏掉，
   是靠对照本项目已独立验证过的 `CBorisPusher` 才定位到的（详见 WORK_LOG §6.4）。
+
+### 11.16 R3-①/② 进展（三维可视化：零依赖 VTK 导出 + Python 交叉验证）
+
+目标：用户原始三大需求中唯一尚未推进的一项——**改善可视化**。R3 路线是先 IO、后 3D 交互。
+
+#### 为什么先不做 HDF5
+
+`configure.ac` 与 `src/Makefile.am` 里**没有任何 HDF5 接线**（此前文档中“HDF5 已就绪”
+指的是系统装了库，不是项目链接了它）。而 **VTK XML 的 `.vti`/`.vtp` 是纯文本格式**，
+不需链接任何库，ParaView 与 PyVista 都原生支持——所以可视化可以在**零新依赖**下先落地，
+HDF5/openPMD 留给大规模数据的二进制后端（R3-③）。
+
+#### 交付物
+
+| 文件 | 作用 |
+| --- | --- |
+| `src/io/vtkwriter.{hpp,cpp}` | `.vti`（规则网格标量+矢量）、`.vtp`（轨迹折线，每点带 `t`） |
+| `src/Makefile.am` | 新增 `io/` 源与 `-I$(srcdir)/io` |
+| `tests/cycl_vtk_export.cpp` | 导出 → 逐值回读校验；真实螺旋轨道端到端 |
+| `python/ibsimu_cycl/vtk_io.py` | **独立实现**的读取器（仅 numpy） |
+| `python/tests/test_vtk_io.py` | 跨语言交叉验证（CI 两个构建作业均运行） |
+| `examples/cyclotron/view_3d.py` | PyVista 查看/出图；无 pyvista 时退化为文本摘要 |
+
+#### 端到端验证中发现的精度问题（已修）
+
+螺旋轨道（`CFieldMap3D` 均匀场 + `CBorisPusher`，2 圈 800 步）的回旋半径**不恒定**：
+振荡振幅 `4.8839e-4`，与理论 $(\omega\Delta t/2)\cdot r = 4.8840\mathrm{e}{-4}$
+**符合到 4 位有效数字**。
+
+原因：标准 leapfrog/Boris 的速度定义在半步 $v^{n-1/2}$ 上，直接用 $t=0$ 的速度起步会留下
+$O(\omega\Delta t)$ 初始瞬态（磁场的**相位**推进仍然正确，只有半径受影响）。
+上游 `ParticleStepper` 有 `initialize()` 做半步反踢，而 `CBorisPusher` 没有。
+
+→ 新增 `CBorisPusher::initialize()`（非相对论/相对论两分支，与上游同构）。
+初始化后振幅 `3.8359e-6`，**抑制 127×**；测试同时断言“未初始化振幅 = 理论值”，
+即**把瞬态本身变成可验证的物理量**，而不是放宽容差掩盖它。
+
+- [x] `make check` = **34/34**
+- [x] CI 增加独立 Python 交叉验证步骤

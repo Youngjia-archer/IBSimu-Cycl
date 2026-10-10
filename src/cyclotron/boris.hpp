@@ -52,6 +52,22 @@ public:
     /*! \brief 洛伦兹因子 gamma（由速度计算，非相对论模式返回 1）。 */
     double gamma( const Vec3D &v ) const;
 
+    /*! \brief 半步初始化：把 t=0 的速度反推半个时间步，消除 O(omega*dt) 初始瞬态。
+     *
+     *  标准 leapfrog/Boris 的速度定义在半步（v^{n-1/2}）上。若直接用 t=0 的
+     *  速度起步，离散轨道的回旋半径会出现约 (omega*dt/2)*r 的振荡（频率即回旋频率），
+     *  且步数越少越明显；磁场的**相位**推进仍是正确的，受影响的只是半径。
+     *  对每个粒子在开始步进前调用一次即可（对应 IBSimu `ParticleStepper::initialize()`）。
+     *
+     *  \param E  电场，可为 NULL
+     *  \param B  磁场，可为 NULL
+     *  \param x  起始位置 [m]（只读，用于场求值）
+     *  \param v  速度 [m/s]（输入/输出）
+     *  \param dt 时间步长 [s]
+     */
+    void initialize( const VectorField *E, const VectorField *B,
+		     const Vec3D &x, Vec3D &v, double dt ) const;
+
     /*! \brief 推进一步（原地更新 \a x, \a v）。
      *
      *  \param E  电场（时变者需在调用前 set_time(t)），可为 NULL

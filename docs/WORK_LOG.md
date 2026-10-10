@@ -146,6 +146,10 @@ automake 接受 `.cu` + 自定义规则，但 libtool 会：
 - 基准必须足够长（如 200 万次求值）才能分辨 1.2× 级别的差异。
 - 用 `git stash push -- <指定文件>` 做单变量前后对比非常有效。
 - **先有基准再优化**：`mgcyc`/`max|phi|` 这类现成指标当场就能暴露语义破坏。
+- **端到端“导出真实轨道”这种带场景的验证，比单元测试更容易暴露物理缺陷**：
+  R3 的可视化导出测试本来是验证 IO，却抳出了 `CBorisPusher` 的 $O(\omega\Delta t)$
+  启动瞬态（半径振荡 4.88e-4）。**测得的振荡幅度与理论值符合到 4 位有效数字**
+  后才敢确认成因，而不是拍脑袋归因于“数值噪声”。
 
 ---
 
@@ -163,9 +167,12 @@ src/cyclotron/          本项目新增（命名空间 ibsimu_cycl）
   boris.*               相对论 Boris 推进器
   ensembletracker.*     OpenMP 粒子系综
   cuda/                 CGpuEnsembleTracker（NVRTC + Driver API）
+src/io/                 本项目新增（命名空间 ibsimu_cycl）
+  vtkwriter.*           VTK XML 导出（.vti 场图 / .vtp 轨迹，零外部依赖）
+python/ibsimu_cycl/     Python 侧：vtk_io 读取器（交叉验证 + 后处理）
 adapters/               外部求解器适配器（Elmer / Palace），松耦合文件交换
-examples/cyclotron/     真实算例数据与绘图脚本
-tests/cycl_*.cpp        本项目新增的测试与基准（共 13 个）
+examples/cyclotron/     真实算例数据、绘图与三维查看脚本
+tests/cycl_*.cpp        本项目新增的测试与基准（共 14 个）
 docs/                   ROADMAP / DEVELOPMENT / UPSTREAM_ARCHITECTURE / WORK_LOG
 ```
 
@@ -252,10 +259,65 @@ docs/                   ROADMAP / DEVELOPMENT / UPSTREAM_ARCHITECTURE / WORK_LOG
 
 ---
 
-## 7. 建议的下一步（按性价比）
+## 7. 三维可视化：零依赖 VTK 导出（R3-①/②）
 
-1. **R3 可视化**：openPMD/HDF5 输出 + VTK/XDMF 导出 + PyVista/ParaView 三维交互
-   （HDF5 已就绪；这是用户原始三大需求中唯一尚未推进的一项）。
+**背景**：用户原始三大需求（效率 / 回旋加速器物理 / 可视化）中，可视化是**唯一尚未推进**
+的一项。R3 的规划路线是先 IO、后 3D 交互。
+
+### 7.1 关键取舍：先不做 HDF5
+
+查证发现 `configure.ac` 与 `src/Makefile.am` 里**没有任何 HDF5 接线**
+（之前文档里“HDF5 已就绪”指的是系统装了库，不是项目链接了它）。
+而 **VTK XML 的 `.vti`/`.vtp` 是纯文本格式**，不需链接任何库，
+ParaView 与 PyVista 都原生支持 → 可视化可以在**零新依赖**下先落地，
+HDF5/openPMD 留给大规模数据的二进制后端（R3-③）。
+
+### 7.2 交付物
+
+| 文件 | 作用 |
+| --- | --- |
+| `src/io/vtkwriter.{hpp,cpp}` | `.vti`（规则网格标量+矢量）、`.vtp`（轨迹折线，每点带 `t`） |
+| `tests/cycl_vtk_export.cpp` | 导出 → 极简解析器逐值回读；真实螺旋轨道端到端 |
+| `python/ibsimu_cycl/vtk_io.py` | **独立实现**的读取器（仅 numpy） |
+| `python/tests/test_vtk_io.py` | 跨语言交叉验证（CI 两个构建作业均运行） |
+| `examples/cyclotron/view_3d.py` | PyVista 查看/出图；无 pyvista 时退化为文本摘要 |
+
+**为何要两套实现**：C++ 写出器与 Python 读取器互相独立，用后者校验前者才叫验证；
+Python 侧还刻意**不复用 C++ 的常数**，而用文件内部的自洽关系（`Bmag == |B|`、
+`z/t` 恒定、半径恒定、场的对称性）做判据——任一侧出错都会被发现。
+
+### 7.3 意外收获：端到端验证掉出一个物理缺陷
+
+螺旋轨道（`CFieldMap3D` 均匀场 + `CBorisPusher`，2 圈 800 步）的回旋半径并不恒定：
+
+| | 半径振荡振幅 |
+| --- | --- |
+| 未初始化 | 4.8839e-4 |
+| 理论 $(\omega\Delta t/2)\cdot r$ | 4.8840e-4 |
+| **已初始化** | **3.8359e-6（抑制 127×）** |
+
+标准 leapfrog/Boris 的速度定义在半步 $v^{n-1/2}$ 上，用 $t=0$ 的速度直接起步会留下
+$O(\omega\Delta t)$ 初始瞬态（磁场**相位**推进仍正确，只有半径受影响）。
+上游 `ParticleStepper` 有 `initialize()` 做半步反踢，`CBorisPusher` 没有。
+
+→ 新增 `CBorisPusher::initialize()`（非相对论/相对论两分支）。
+测试同时断言“未初始化振幅 = 理论值”，**把瞬态本身变成可验证的物理量**，
+而不是放宽容差掩盖它。
+
+### 7.4 结论与后续
+
+- [x] `make check` = **34/34**（新增 `cycl_vtk_export`）。
+- [x] CI 两个构建作业增加独立 Python 交叉验证步骤。
+- [ ] R3-③：HDF5/openPMD 二进制后端（大网格/大粒子数）；`.pvti` + 二进制追加段。
+- [ ] R3-③：把导出接到现有算例脚本（PSI Ring 真实场图 + 多圈轨道）。
+
+---
+
+## 8. 建议的下一步（按性价比）
+
+1. **R3 可视化（已启动，见 §7）**：`.vti`/`.vtp` 导出 + ParaView/PyVista 通路已完成。
+   下一步是 R3-③：openPMD/HDF5 二进制后端（支持 >1e8 点）、把导出接进真实算例脚本
+   （PSI Ring 场图 + 多圈轨道）、以及 Jupyter 教程。
 2. **物理侧扩展**：注入/引出（螺旋偏转板）、Palace 真实腔模式场接入、
    相对论 RF 渡越。
 3. **GPU 端支持时变/射频场**：让多圈加速也能跑在 GPU 上。
@@ -263,15 +325,17 @@ docs/                   ROADMAP / DEVELOPMENT / UPSTREAM_ARCHITECTURE / WORK_LOG
 
 ---
 
-## 8. 常用命令
+## 9. 常用命令
 
 ```bash
 ./reconf && ./configure && make -j12     # 构建（含 CUDA 自动探测）
-make check                               # 全部测试（当前 33/33）
+make check                               # 全部测试（当前 34/34）
 ./tests/cycl_poisson_bench 129 257       # 求解器规模扫描
 ./tests/cycl_poisson_bench --2d 1025     # 2D 模式
 ./tests/cycl_poisson_bench --cyl 513 257 # CYL 模式
 ./tests/cycl_pic_bench 4 1 6 12          # 自洽循环时间构成
 IBSIMU_THREADS=1 make check              # 强制串行（严格复现）
 ./configure --without-cuda               # 关闭 GPU 后端
+python3 python/tests/test_vtk_io.py      # VTK 导出器的 Python 交叉验证
+python3 examples/cyclotron/view_3d.py a.vti b.vtp   # 三维查看（需 pyvista）
 ```

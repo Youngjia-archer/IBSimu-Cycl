@@ -30,6 +30,7 @@ cycl_fieldbench_SOURCES = cycl_fieldbench.cpp
 cycl_poisson_bench_SOURCES = cycl_poisson_bench.cpp
 cycl_pic_bench_SOURCES = cycl_pic_bench.cpp
 cycl_stepper_modes_SOURCES = cycl_stepper_modes.cpp
+cycl_vtk_export_SOURCES = cycl_vtk_export.cpp
 cycl_cuda_tracker_SOURCES = cycl_cuda_tracker.cpp
 
 check_PROGRAMS = \
@@ -65,6 +66,7 @@ cycl_fieldbench \
 cycl_poisson_bench \
 cycl_pic_bench \
 cycl_stepper_modes \
+cycl_vtk_export \
 cycl_cuda_tracker
 
 TESTS = $(check_PROGRAMS)
@@ -74,7 +76,7 @@ libibsimutest_la_SOURCES = \
 ibsimutest.cpp \
 ibsimutest.hpp
 
-AM_CPPFLAGS = $(CPPFLAGS) -Wall -g -I$(top_srcdir)/src -I$(top_srcdir)/src/cyclotron -I$(top_srcdir)/src/cyclotron/cuda $(OPENMP_CXXFLAGS)
+AM_CPPFLAGS = $(CPPFLAGS) -Wall -g -I$(top_srcdir)/src -I$(top_srcdir)/src/cyclotron -I$(top_srcdir)/src/io -I$(top_srcdir)/src/cyclotron/cuda $(OPENMP_CXXFLAGS)
 AM_LDFLAGS = $(LIBS) -L$(top_srcdir)/src @rdynamic_flag@ $(OPENMP_CXXFLAGS) $(CUDA_LDFLAGS)
 LDADD = $(top_builddir)/src/libibsimu-1.0.6dev.la libibsimutest.la -lm
 
@@ -86,5 +88,5 @@ endif
 EXTRA_DIST = \
 solver2d_coax.gpl
 
-CLEANFILES = *~ *.png *.eps *.svg *.pdf *.ps *.dat *_vout.txt plasmacyl_emit1.txt beam3d.path libibsimutest.la
+CLEANFILES = *~ *.png *.eps *.svg *.pdf *.ps *.dat *_vout.txt plasmacyl_emit1.txt beam3d.path libibsimutest.la *.vti *.vtp
 

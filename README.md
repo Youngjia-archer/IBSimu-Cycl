@@ -281,6 +281,57 @@ CUDA Driver API 加载。
 GPU 结果与 CPU 一致到机器精度（400 步后 `dx = 1.4e-14 m`、`dv/v = 3.8e-15`），
 γ 逐粒子相对漂移 `2.0e-15`。该场景下 kernel 占 97%，数据传输仅 2.6%。
 
+## 三维可视化与数据交换（R3）
+
+新增**零外部依赖的 VTK XML 导出器**（`src/io/vtkwriter.cpp`），直接产出 ParaView /
+PyVista 可打开的文件：
+
+| 格式 | 内容 |
+| --- | --- |
+| `.vti` （ImageData） | 规则网格标量/矢量场（B、E、电势…） |
+| `.vtp` （PolyData） | 粒子轨迹折线（每点带 `t` 标量，可按时间着色） |
+
+```cpp
+#include "vtkwriter.hpp"
+using namespace ibsimu_cycl;
+
+// 场图：标量 + 三分量矢量（数据按 i 最快排列，与 IBSimu 网格一致）
+vtk_write_image_data( "field.vti", Int3D(nx,ny,nz), Vec3D(x0,y0,z0), Vec3D(h,h,h),
+                      "Bmag", bmag, "B", bvec );
+// 轨迹：一批折线
+vtk_write_polylines( "orbit.vtp", lines );
+```
+
+查看方式：
+
+```bash
+paraview field.vti orbit.vtp                                    # 功能最全
+python3 examples/cyclotron/view_3d.py field.vti orbit.vtp       # 交互（需 pyvista）
+python3 examples/cyclotron/view_3d.py --save out.png orbit.vtp  # 批量出图
+```
+
+Python 侧另有一套**独立实现**的读取器 `python/ibsimu_cycl/vtk_io.py`：不装 VTK
+也能做后处理，同时充当导出器的交叉验证。
+
+```python
+from ibsimu_cycl.vtk_io import read
+fd = read("field.vti"); grid = fd.scalar_grid("Bmag")   # (nz, ny, nx)
+tr = read("orbit.vtp"); tr.points.shape, len(tr.lines)
+```
+
+验证：`tests/cycl_vtk_export.cpp`（导出 → 逐值回读校验 + 真实轨道端到端）与
+`python/tests/test_vtk_io.py`（**不同语言、不同实现**的交叉校验，CI 两个构建作业均运行）。
+
+> 大规模数据（>1e8 点）的二进制/追加段后端（HDF5/openPMD、`.pvti`）见 ROADMAP R3-③。
+
+### 顺带修正的一个精度问题
+
+端到端验证暴露出 `CBorisPusher` 的 **Boris 启动瞬态**：标准 leapfrog/Boris 的速度
+定义在半步上，直接用 $t=0$ 的速度起步会让回旋半径产生 $\omega\Delta t\,r/2$ 的振荡
+（实测振幅 `4.8839e-4`，理论 `4.8840e-4`，符合到 4 位有效数字）。
+新增 `CBorisPusher::initialize()`（半步反踢，对应上游 `ParticleStepper::initialize()`）
+后振幅降到 `3.8359e-6`，**抑制 127×**。
+
 ## 文档
 
 | 文档 | 内容 |

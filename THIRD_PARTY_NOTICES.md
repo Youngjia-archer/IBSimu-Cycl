@@ -34,13 +34,13 @@
 | 组件 | 用途 | 许可证 | 整合方式 | 兼容性 |
 | --- | --- | --- | --- | --- |
 | openPMD-api | 场图/粒子 IO | LGPL-3.0-or-later | 链接 | ⚠️ 待核实（LGPL 动态链接通常可行） |
-| HIPPLO/HDF5 | 容器 | BSD-3 | 链接 | ✅ |
+| HDF5 (The HDF Group) | 容器 | BSD-3 | 链接（可选，R3-③ 计划） | ✅ |
 | Kokkos | 性能可移植（CPU/GPU） | Apache-2.0 | 链接 | ⚠️ 仅在与 GPL-3.0 组合时可链接 |
 | MPI | 多节点 | 各实现许可 | 链接 | ✅ |
 | hypre | 并行 AMG | MIT / Apache-2.0 | 链接 | ✅ |
 | PETSc | 线性求解 | BSD-2 | 链接 | ✅ |
 | AMGx (NVIDIA) | GPU AMG | BSD-3 | 链接（可选） | ✅ |
-| VTK | 3D 可视化 IO | BSD-3 | 链接 | ✅ |
+| VTK | 3D 可视化 IO | BSD-3 | **未链接**：直接写 VTK XML 文本格式（`src/io/vtkwriter`） | ✅ |
 | pyvista | Python 可视化 | MIT | 依赖 | ✅ |
 | ADIOS2 | 高性能 IO | Apache-2.0 | 依赖 | ⚠️ 与 GPL-3.0 兼容 |
 
