@@ -356,6 +356,9 @@ $O(\omega\Delta t)$ 初始瞬态（磁场**相位**推进仍正确，只有半�
 近似随机），所以只宣称 ~3×，不做更激进的宣传。
 
 - [x] `make check` = **36/36**（新增 `cycl_hdf5_export`；无 HDF5 时该测试打印 `[SKIP]` 并成功返回）
+- [x] **降级路径实测**：在**干净的源码副本**上 `./configure --without-hdf5 --without-gtk3 --without-opengl`
+  → 建库、建测试均无错，`make check` 仍为 **36/36**，`cycl_hdf5_export` 输出
+  `[SKIP] HDF5 backend not compiled in` 并返回 0；无 h5py 时 Python 测试同样 `[SKIP]` 退出 0。
 - [x] CI 两个 C++ 作业装 `libhdf5-dev` + `python3-h5py`，`adapters-python` 作业装 `h5py`
 - [ ] 后续：把 HDF5 导出接进真实算例脚本；`.pvti` + 二进制追加段；openPMD 完备互操作
 
