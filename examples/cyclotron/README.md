@@ -25,23 +25,25 @@ P2/P3/P4 阶段再导入实际输入文件与场图。
 
 | 脚本 | 输入（由 `make check` 或单独运行产生） | 输出 |
 | --- | --- | --- |
-| `plot_trajectory.py` | `tests/cycl_track.csv` | `cyclotron_orbit.png`（xy 轨道/\|B\|/速率/相位 2×2） |
-| `plot_acceleration.py` | `tests/cycl_accel.csv` | `cyclotron_acceleration.png` |
-| `plot_relativistic_orbit.py` | `tests/cycl_relativistic.csv` + `tests/cycl_closed_orbit.vtp` | `cyclotron_real_orbit.png`（**未匹配初值 vs 闭合轨道**对比） |
-| **`plot_field_map.py`** | `tests/cycl_track_map.vti` + `cycl_track.vtp` | **`docs/img/cyclotron_field_map.png`（整机中场图 + 五圈轨道）** |
+| `plot_field_map.py` | `tests/cycl_track_map.vti` | `docs/img/cyclotron_field_map.png`（整机中场图，**不含任何轨迹**） |
+| `plot_closed_orbit.py` | `tests/cycl_closed_orbit.vtp`（+ 可选 `cycl_track_map.vti` 作底图） | `docs/img/cyclotron_real_orbit.png`（**闭合轨道，单能量**） |
+| `plot_acceleration.py` | `tests/cycl_accel_locked.csv`、`cycl_accel_real.csv` | `docs/img/cyclotron_acceleration.png`（Part B 为**已知限制**） |
 | `view_3d.py` | 任意 `.vti` / `.vtp` | 三维交互视图或 PNG（需 `pyvista`） |
 
 典型流程::
 
 ```bash
-make -C tests cycl_track && ./tests/cycl_track        # 生成 CSV / VTK XML
-make -C tests cycl_closed_orbit && ./tests/cycl_closed_orbit   # 闭合轨道 .vtp
-python3 examples/cyclotron/plot_field_map.py          # 整机中场图 + 轨道图
-python3 examples/cyclotron/plot_relativistic_orbit.py \
-    --naive tests/cycl_relativistic.csv --closed tests/cycl_closed_orbit.vtp \
-    -o docs/img/cyclotron_real_orbit.png              # 闭合轨道对比图
-python3 examples/cyclotron/view_3d.py tests/cycl_track_field.vti tests/cycl_track.vtp
+make -C tests cycl_track && ./tests/cycl_track                 # 校验 ω_c + 整机中场图
+python3 examples/cyclotron/plot_field_map.py                    # 场图
+make -C tests cycl_closed_orbit && ./tests/cycl_closed_orbit    # 闭合轨道
+python3 examples/cyclotron/plot_closed_orbit.py \
+    --orbit tests/cycl_closed_orbit.vtp --map tests/cycl_track_map.vti \
+    -o docs/img/cyclotron_real_orbit.png
+python3 examples/cyclotron/view_3d.py tests/cycl_track_map.vti  # 三维交互（需 pyvista）
 ```
+
+> ⚠️ 已删除的脚本：`plot_trajectory.py` 与图 `cyclotron_orbit.png`。它们展示的是一条
+> 半径仅 0.2 m 的**局部拉莫尔回旋**（0.1c 质子），不是回旋加速器轨道，属误导。
 
 > 注：`tests/cycl_track` 默认从 `tests/` 目录运行（它按 `../examples/cyclotron/data/` 找场图）。
 

@@ -279,7 +279,23 @@ int main( int argc, char **argv )
                 std::printf( "  B2: KE %.4f -> %.4f MeV over %d turns; dphi/turn=%.5f rad\n",
                              cB.front().KE/QE/1e6, cB.back().KE/QE/1e6, (int)cB.size()-1,
                              (wrap2pi(cB.back().phi)-wrap2pi(cB.front().phi))/(double)(cB.size()-1) );
-                check( cB.back().KE > cB.front().KE, "B2: RF accelerates in real (scaled) field" );
+                // *** 已知限制：不要把这一项当作“RF 加速成功” ***
+                // 初值仍是未匹配闭合轨道的切向发射，轨迹被大幅 betatron 摆动主导：
+                // 轨道半径在能量增加的同时反而 **减小**，与 r ∝ sqrt(KE) 相矛盾；
+                // 且测得增益只有设计值（2*q*V0 = 40 keV/圈）的约 1/10。
+                // 真实场中的 RF 加速需要先 (a) 求闭合轨道、(b) 做相位/等时性匹配。
+                // 详见 WORK_LOG §8 与 ROADMAP。统计量从 cB 里直接算，避免误读。
+                {
+                    const double nturn = (double)(cB.size()-1);
+                    // 注意 KE 的单位是 J：先 /QE 换成 eV 再换算 keV
+                    const double dKE_turn_keV = (cB.back().KE - cB.front().KE)
+                        /nturn/QE/1e3;
+                    std::printf( "  B2: *** 已知限制 *** 该数据不构成有效加速证据：\n" );
+                    std::printf( "      半径 %.4f -> %.4f m（能量增加却减小，非 r∝sqrt(KE)）\n",
+                                 cB.front().r, cB.back().r );
+                    std::printf( "      增益 %.2f keV/圈  vs 设计值 40.00 keV/圈（%.0f%%）\n",
+                                 dKE_turn_keV, 100.0*dKE_turn_keV/40.0 );
+                }
                 std::ofstream f( "cycl_accel_real.csv" );
                 f << "turn,t,KE_MeV,r,phi_rad\n";
                 for( std::size_t k = 0; k < cB.size(); ++k )

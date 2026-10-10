@@ -427,7 +427,7 @@ int main( int argc, char **argv )
 	Vec3D x, v;
 	state_to_xv( th0, vmag, fix, x, v );
 	pusher.initialize( 0, &B, x, v, dt );
-	const int NS = 6000;
+	const int NS = 12000;   // 3 圈（dt = T_rev/4000）
 	double acc = 0.0, th_prev = th0, tcur = 0.0;
 	TrajectoryPoint p0; p0.t = 0.0; p0.x = x;
 	lines[0].push_back( p0 );

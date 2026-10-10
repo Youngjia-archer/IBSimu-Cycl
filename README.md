@@ -87,12 +87,12 @@ make check
 ## 端到端 Demo：真实磁场中的三维跟踪
 
 `tests/cycl_track.cpp` 演示完整链路：读取真实 **PSI Ring** 磁场图（`bfield.dat`）
-→ `CRingFieldMap3D` 三维场 → Boris 推动器积分质子运动 → 校验回旋频率 → 导出轨迹。
+→ `CRingFieldMap3D` 三维场 → Boris 推动器积分质子运动 → 校验回旋频率 → 导出整机中场图。
 
 ```bash
 ./reconf && ./configure && make -j"$(nproc)"
-make -C tests cycl_track && ./tests/cycl_track        # 写出 cycl_track.csv / .vtk
-python3 examples/cyclotron/plot_trajectory.py cycl_track.csv -o docs/img/cyclotron_orbit.png
+make -C tests cycl_track && ./tests/cycl_track     # 校验 ω_c 并写出 cycl_track_map.vti
+python3 examples/cyclotron/plot_field_map.py       # -> docs/img/cyclotron_field_map.png
 ```
 
 结果（r = 3.3 m）：
@@ -104,16 +104,12 @@ python3 examples/cyclotron/plot_trajectory.py cycl_track.csv -o docs/img/cyclotr
 | 回旋频率（测量） | `1.492997e8 rad/s`（相对误差 **6.8e-4**） |
 | 速率守恒（静磁场） | 相对漂移 `1.6e-15`（机器精度） |
 
-![cyclotron orbit](docs/img/cyclotron_orbit.png)
-
-轨迹同时输出 `cycl_track.vtk`（ParaView 可直接打开）与 `cycl_track.csv`。
-
-> ❗ **看清这是什么轨道**：上图是**拉莫尔回旋**（Larmor gyration）——0.1c 质子在
-> $B=1.5576$ T 下的回旋半径只有 $r_L = mv/(qB) = 0.201$ m，所以它是一条
-> **直径约 0.4 m 的局部小圆**，而不是绕加速器中心的轨道。
-> 这样选是**故意的**：小半径处磁场近似均匀，才能用 $\mathrm{d}\phi_v/\mathrm{d}t$
-> 干净地测出 $\omega_c = qB/m$。要看**真正的回旋加速器轨道**（$r\approx3.3$ m）
-> 见 F1 与下面的「闭合轨道」一节。
+> 该算例**不输出任何轨迹图**。它原来还会额外产生一条 0.1c 质子的轨迹
+> （$r_L = mv/(qB) = 0.201$ m，即直径 0.4 m 的局部小圆）并当作“轨道图”展示：
+> 那**不是**回旋加速器轨道，已删除。机器尺度的轨道见后面的「闭合轨道」一节。
+>
+> 磁场的**空间结构**单独出图：`plot_field_map.py` → `docs/img/cyclotron_field_map.png`
+> （整机中场 |B|、$\langle B_z\rangle(r)$、方位角与半径分布）。
 
 ## 多圈加速与相位滑移（P4）
 
@@ -132,9 +128,13 @@ python3 examples/cyclotron/plot_trajectory.py cycl_track.csv -o docs/img/cyclotr
 > 必须用两个**对径**间隙（dee 的两侧）才能让中心漂移相互抵消、轨道同心外扩——
 > 这与真实回旋加速器一致。
 >
-> ⚠️ 真实 PSI Ring 的绝对场强（~1.5 T）对应相对论速度（β≈0.6），超出当前**非相对论**
-> Boris 推进器范围；Part B 因此采用**整体缩放**模型（保留 8 折扇形与径向结构）。
-> 相对论推进器列入后续工作。
+> ⚠️ **Part B（真实场图，整体缩放）目前不是有效的加速演示**（已知限制）：
+> 测得增益仅 **3.72 keV/圈**，而设计值是 $2qV_0 = 40$ keV/圈（**9%**）；
+> 更关键的是轨道半径在能量增加的同时**反而减小**（3.50 → 3.46 m），
+> 与 $r\propto\sqrt{KE}$ 矛盾——说明轨迹被**未匹配闭合轨道的大幅 betatron 摆动**
+> 主导（与 §闭合轨道 同源）。真实场中的 RF 加速必须先求闭合轨道、再做相位/等时性匹配。
+> 测试仍保留这一段作为数据采集，但**不再把它当验收判据**。
+> 相对论推进器见 F1；真实场强下已在 F1 实现（当年“超出非相对论范围”的限制已解除）。
 
 ## 相对论推进器与真实场强下的 PSI Ring 轨道（F1）
 
@@ -149,17 +149,17 @@ python3 examples/cyclotron/plot_trajectory.py cycl_track.csv -o docs/img/cyclotr
 | **真实 PSI Ring 场强**（$r=3.3$ m，$\langle B\rangle=0.669$ T） | $\gamma=1.224$，$\beta=0.577$，**KE = 210 MeV** |
 | 轨道有界性与回路频率 | $r\in[2.94,3.56]$ m；$f_{rev}$ 与 $q\langle B\rangle/(2\pi\gamma m)$ 差 **2.0%** |
 
-![real orbit](docs/img/cyclotron_real_orbit.png)
+![closed orbit](docs/img/cyclotron_real_orbit.png)
 
-图中对比了两种轨道：
+图为数值求出的**闭合轨道**（单圈映射的不动点，非线交对比）：半径在
+$3.166\sim3.311$ m 之间按 8 折扇区调制，跨度 **145 mm（4.5%）**，逐圈重复。
+求法与判据见下一节。
 
-- **散布的彩色点**：在 $r=3.3$ m 处纯切向发射的轨迹。它**有界但不闭合**——
-  相邻两圈在**同一方位角**上的半径差达 **0.24 m**，每次回旋都走一条全新曲线
-  （径向摆动 0.62 m，比物理扇贝调制大一个量级）。这就是之前“轨道重叠”的来源。
-- **红色实线**：数值求出的**闭合轨道**（单圈映射的不动点），逐圈重复，
-  摆动只有 **0.14 m**——即真实的 8 折扇贝调制。求法与判据见下一节。
-
-右下可见轨道每经过一个分离扇区时 $|B|$ 在 1.6 T（磁极）与 ~0（漂移段）之间变化。
+> ⚠️ **这是单能量稳态轨道，不含 RF 加速**。真实回旋加速器的束流每圈获得能量、
+> 轨道半径随之外扩（$r=\sqrt{2KE/m}/\omega_c$），是一条向外盘旋的螺旋；
+> 本图画的是**固定能量**（$\gamma=1.227$）下的闭合轨道——加速暂未纳入（见 ROADMAP）。
+> 以切向发射（未做不动点匹配）得到的轨迹则连闭合都不是：逐圈半径差 0.24 m，
+> 且半径反而随能量下降，详见 `tests/cycl_closed_orbit.cpp`。
 
 > 这解除了 P4 的限制：**真实场强下的 PSI Ring 现在可以直接跟踪**，无需整体缩放。
 
@@ -355,7 +355,6 @@ python3 examples/cyclotron/view_3d.py --save out.png orbit.vtp  # 批量出图
 
 ```bash
 make -C tests cycl_track && (cd tests && ./cycl_track)
-paraview tests/cycl_track_field.vti tests/cycl_track.vtp   # 轨道附近的三维 B + 轨道
 paraview tests/cycl_track_map.vti                          # 整机中场图（中平面 360°）
 python3 examples/cyclotron/plot_field_map.py               # 直接出 PNG
 ```

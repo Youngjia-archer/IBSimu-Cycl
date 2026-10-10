@@ -1,25 +1,26 @@
 #!/usr/bin/env python3
-"""绘制 PSI Ring **整机中场图**与**轨道图**。
+"""绘制 PSI Ring **整机中场图**（**不含任何粒子轨迹**）。
 
 数据来源是 ``tests/cycl_track`` 导出的标准 VTK XML（见 ``src/io/vtkwriter``）::
 
     make -C tests cycl_track && ./tests/cycl_track
 
     tests/cycl_track_map.vti    整机中场图（中平面 360° 全周，r∈[1.9,4.7] m）
-    tests/cycl_track.vtp        五圈轨道（每点带物理时刻 t）
 
 用法::
 
     python3 examples/cyclotron/plot_field_map.py \
-        --map   tests/cycl_track_map.vti \
-        --orbit tests/cycl_track.vtp \
-        -o      docs/img/cyclotron_field_map.png
+        --map tests/cycl_track_map.vti -o docs/img/cyclotron_field_map.png
 
 生成 2x2 图：
-  1) 整机中场 |B|（含五圈轨道叠加，等比例）
-  2) 轨道区域放大 + 轨道
-  3) |B| 沿方位角（r=3.3 m）—— 8 折扇形结构
-  4) |B| 沿半径（扇区中心 vs 扇区边界）—— 平均场径向分布
+  1) 整机中场 |B|（含参考点标记）
+  2) 方位平均场 <Bz>(r)：决定轨道半径的量
+  3) |B| 沿方位角 —— 8 折扇形结构
+  4) |B| 沿半径（扇区中心 vs 扇区边界）
+
+> 本图**不画粒子轨迹**。过去在这里叠过一条 0.2 m 半径的“局部拉莫尔回旋”，
+> 那不是回旋加速器轨道，已删除；机器尺度的闭合轨道见
+> ``plot_closed_orbit.py`` 与 ``tests/cycl_closed_orbit.cpp``。
 
 无显示环境可用（Agg 后端）。
 
@@ -55,8 +56,6 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description="绘制 PSI Ring 场图与轨道图")
     ap.add_argument("--map", default="tests/cycl_track_map.vti",
                     help="整机中场图 .vti（由 cycl_track 导出）")
-    ap.add_argument("--orbit", default="tests/cycl_track.vtp",
-                    help="轨道 .vtp（由 cycl_track 导出）")
     ap.add_argument("-o", "--output", default="docs/img/cyclotron_field_map.png")
     args = ap.parse_args(argv)
 
@@ -65,6 +64,8 @@ def main(argv=None):
     if fd.dims[2] != 1:
         raise SystemExit(f"{args.map}: 期望单层中平面切片，实为 {fd.dims}")
     bmag = fd.scalar_grid("Bmag")[0]              # (ny, nx)
+    bz = fd.vector("B")[:, 2].reshape(fd.dims[2], fd.dims[1],
+                                       fd.dims[0])[0]   # 真正的 Bz 分量
     x0, y0 = fd.origin[0], fd.origin[1]
     h = fd.spacing[0]
     x1 = x0 + h * (fd.dims[0] - 1)
@@ -72,11 +73,6 @@ def main(argv=None):
 
     xa = np.linspace(x0, x1, fd.dims[0])
     ya = np.linspace(y0, y1, fd.dims[1])
-
-    # ---- 轨道 ----
-    tr = read(args.orbit)
-    ox, oy = tr.points[:, 0], tr.points[:, 1]
-    ot = tr.arrays["t"]
 
     # ---- 参考值自检（与 cycl_track 的解析判据同一量）----
     r_ref, th_ref = 3.3, np.pi / 2
@@ -86,11 +82,10 @@ def main(argv=None):
 
     fig, ax = plt.subplots(2, 2, figsize=(13, 11))
 
-    # --- (1) 整机中场图 + 轨道 ---
+    # --- (1) 整机中场图 ---
     a = ax[0][0]
     im = a.imshow(bmag, origin="lower", extent=[x0, x1, y0, y1],
                   cmap="viridis", interpolation="bilinear")
-    a.plot(ox, oy, color="white", lw=0.8, alpha=0.9, label="orbit (5 turns)")
     a.plot([r_ref * np.cos(th_ref)], [r_ref * np.sin(th_ref)], "o",
            color="#ff5252", ms=7, label=f"reference point (r={r_ref} m)")
     a.set_aspect("equal")
@@ -100,21 +95,31 @@ def main(argv=None):
     a.legend(loc="upper right", fontsize=9)
     fig.colorbar(im, ax=a, label="|B| [T]", shrink=0.85)
 
-    # --- (2) 轨道区域放大 ---
+    # --- (2) 方位平均场 <Bz>(r)：回旋加速器轨道的决定量 ---
     a = ax[0][1]
-    m = 1.6 * max(np.abs(ox - ox.mean()).max(), np.abs(oy - oy.mean()).max())
-    cx, cy = ox.mean(), oy.mean()
-    a.imshow(bmag, origin="lower", extent=[x0, x1, y0, y1],
-             cmap="viridis", interpolation="bilinear")
-    a.plot(ox, oy, color="white", lw=1.0)
-    a.plot(ox[0], oy[0], "o", color="#ff5252", ms=6, label="start")
-    a.set_xlim(cx - m, cx + m)
-    a.set_ylim(cy - m, cy + m)
-    a.set_aspect("equal")
-    a.set_xlabel("x [m]")
-    a.set_ylabel("y [m]")
-    a.set_title("Orbit zoom: scalloping from the non-uniform field")
-    a.legend(loc="upper right", fontsize=9)
+    rr = np.linspace(1.95, 4.65, 260)
+    phi = np.linspace(0, 2*np.pi, 721)
+    bavg = np.array([
+        sample_nearest(bz, x0, y0, h,
+                       r*np.cos(phi), r*np.sin(phi)).mean()
+        for r in rr])
+    bmax = np.array([
+        sample_nearest(bmag, x0, y0, h,
+                       r*np.cos(phi), r*np.sin(phi)).max()
+        for r in rr])
+    a.plot(rr, bavg, lw=1.8, label=r"$\langle B_z\rangle$ (azimuthal mean)")
+    a.plot(rr, bmax, lw=1.2, ls="--", color="#d62728",
+           label="peak |B| (pole)")
+    a.axhline(bavg[np.argmin(np.abs(rr - r_ref))], color="0.4", lw=0.8, ls=":")
+    a.text(2.05, bavg[np.argmin(np.abs(rr - r_ref))]*0.32,
+           "pole fill factor = $\\langle B_z\\rangle/B_{pole}$ ≈ 0.43\n"
+           "(poles cover only ~19$^\\circ$ of each 45$^\\circ$ sector)",
+           fontsize=8)
+    a.set_xlabel("radius r [m]")
+    a.set_ylabel("B [T]")
+    a.set_title(r"$\langle B_z\rangle(r)$: what sets the orbit radius")
+    a.grid(alpha=0.3)
+    a.legend(fontsize=9)
 
     # --- (3) |B| 沿方位角（8 折扇形结构）---
     a = ax[1][0]
@@ -159,8 +164,8 @@ def main(argv=None):
     print(f"场图: {fd.dims[0]}x{fd.dims[1]} 节点, x∈[{x0:.3f},{x1:.3f}] m, "
           f"步长 {h} m")
     print(f"|B| 范围: {bmag.min():.4f} ~ {bmag.max():.4f} T")
-    print(f"轨道: {len(tr.points)} 点, "
-          f"t∈[{ot.min():.3e},{ot.max():.3e}] s, 起点 ({ox[0]:.4f},{oy[0]:.4f})")
+    print(f"⟨Bz⟩(r={r_ref} m) = "
+          f"{bavg[np.argmin(np.abs(rr - r_ref))]:.4f} T")
     print(f"参考点 r={r_ref} m, θ=90°: |B| = {b_ref:.6f} T "
           f"（tests/cycl_track 解析判据为 1.557581 T）")
     return 0

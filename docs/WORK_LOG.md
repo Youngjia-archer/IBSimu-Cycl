@@ -370,7 +370,33 @@ $v_r=-1.60\times10^{7}$ m/s（偏离切向约 5°）。
 - [x] `tests/cycl_closed_orbit.cpp` 已纳入 `make check`（R2-D）；
 - [x] `make check` = **35/35**。
 
-### 8.5 踩坑记录（数值方法，重要）
+### 8.5 后续修正（用户复查）
+
+用户复查后指出三件事，均已处理：
+
+1. **删除“局部拉莫尔回旋”**：0.1c 质子在该场中回旋半径仅 0.2 m，那是局部回旋、
+   不是回旋加速器轨道。已删除 `tests/cycl_track.cpp` 的运行 B、`plot_trajectory.py`
+   与图 `cyclotron_orbit.png`；`cycl_track` 现在只做 ω_c 校验 + 导出整机中场图。
+2. **闭合轨道图不再做“未匹配”对比**：`plot_closed_orbit.py` 只画闭合轨道，
+   并明确标注**这是单能量稳态轨道、不含 RF 加速**——真实回旋加速器里束流每圈
+   获得能量、半径按 $r=\sqrt{2KE/m}/\omega_c$ 外扩，是一条向外盘旋的螺旋。
+3. **加速度图的真实场数据不是有效加速演示**（Part B 已知限制）：
+
+   | 量 | 实测 | 应为 |
+   | --- | --- | --- |
+   | 增益 | **3.72 keV/圈** | $2qV_0 = 40$ keV/圈 |
+   | 半径 | 3.50 → **3.46 m（随能量增加而减小）** | 随 $\sqrt{KE}$ **增大** |
+
+   半径反向变化说明轨迹被**未匹配闭合轨道的大幅 betatron 摆动**主导（与 §8.3 同源）。
+   已把 `cycl_accel.cpp` 里那句“B2: RF accelerates in real field”的弱断言删掉，
+   改为在输出中明确标注已知限制；图中也标注为 “NOT a valid acceleration demo”。
+   真实场中的 RF 加速必须先 (a) 求闭合轨道、(b) 做相位/等时性匹配。
+
+- [x] `make check` = **35/35**（删图不影响测试）。
+- [ ] 待办：真实场中的 RF 加速（闭合轨道 + 相位匹配）；等时性场（$B(r)$ 随 $\gamma$ 上升）
+  以便保持 $\omega_{RF}=$ 常数。
+
+### 8.6 踩坑记录（数值方法，重要）
 
 - **数值 Jacobian 的步长必须匹配响应量纲**：$\partial r'/\partial v_r\sim1/\omega_c\sim2\times10^{-8}$ s，
   取 $\Delta v_r=0.1$ m/s 时响应被浮点噪声淹没，Jacobian 在 $v_r$ 方向退化为**奇异**，

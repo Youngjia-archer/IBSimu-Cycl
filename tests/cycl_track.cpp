@@ -5,7 +5,11 @@
  *   1. 读取真实 PSI Ring 磁场图 (bfield.dat) -> CRingFieldMap3D（三维场）;
  *   2. 用 Boris 推动器积分质子在中平面磁场中的运动;
  *   3. 校验回旋频率 omega_c = qB/m（测量 vs 解析），并检查 |v| 守恒;
- *   4. 输出轨迹供可视化: cycl_track.csv 与 cycl_track.vtk (ParaView 可直接打开)。
+ *   4. 输出**整机中场图** cycl_track_map.vti（ParaView / PyVista 可直接打开）。
+ *
+ *  注：本算例**不**输出任何单粒子轨迹可视化。曾经额外生成过一条 0.1c 质子的
+ *  "局部拉莫尔回旋"轨迹（回旋半径仅 0.2 m）并当作轨道图展示，那不是回旋加速器
+ *  轨道，已删除。机器尺度的闭合轨道见 tests/cycl_closed_orbit.cpp。
  *
  *  用法: cycl_track [bfield.dat] [输出前缀(默认 cycl_track)]
  *
@@ -70,8 +74,7 @@ struct TrajPoint {
     double bmag;
 };
 
-int main( int argc, char **argv )
-{
+int main( int argc, char **argv ){
     // ---- 载入磁场图 ----
     std::vector<std::string> candidates;
     if( argc > 1 ) candidates.push_back( argv[1] );
@@ -146,108 +149,13 @@ int main( int argc, char **argv )
     check( emax_rel < 1e-9, "energy conservation in static B field (|v| constant)" );
     check( std::fabs( x[2] ) < 1e-12, "particle stays on midplane (z=0)" );
 
-    // =====================================================================
-    // 运行 B：产生可视化轨迹（较大回旋半径）
-    // =====================================================================
-    Vec3D x2( r0*std::cos(th0), r0*std::sin(th0), 0.0 );
-    double vmag2 = 3.0e7;                 // 0.1c -> 回旋半径约 0.2 m
-    Vec3D v2( -std::sin(th0)*vmag2, std::cos(th0)*vmag2, 0.0 );
-    double dt2 = Tc/400.0;
-    int    n2  = 2000;                    // ~5 个回旋周期
+    // 注：这里**不再**生成任何“局部拉莫尔回旋”可视化轨迹。
+    // 0.1c 质子在该场中的回旋半径只有 0.2 m，那是一段局部回旋、不是回旋加速器轨道；
+    // 把它当“轨道图”展示过是误导，已删除。真正的机器尺度轨道见
+    // tests/cycl_closed_orbit.cpp（求单圈映射不动点的闭合轨道）。
 
-    std::vector<TrajPoint> traj;
-    traj.reserve( n2 + 1 );
-    for( int n = 0; n <= n2; ++n ) {
-        Vec3D bb = B( x2 );
-        traj.push_back( TrajPoint{ x2, v2, vabs(bb) } );
-        if( n < n2 ) boris_step( B, qm, x2, v2, dt2 );
-    }
-
-    // --- CSV ---
+    // --- VTK XML：整机中场图（不再输出任何单粒子轨迹）---
     {
-        std::ofstream f( (prefix + ".csv").c_str() );
-        // 全精度写出：默认的 6 位有效数字会把速度量化到 ~1e-6，
-        // 在“速率守恒”图上表现为假的 ppm 级漂移（实际是机器精度 1e-15）。
-        f << std::setprecision( 17 );
-        f << "# IBSimu-Cycl proton trajectory (PSI Ring field map)\n";
-        f << "t,x,y,z,vx,vy,vz,Bmag\n";
-        for( std::size_t i = 0; i < traj.size(); ++i ) {
-            const TrajPoint &p = traj[i];
-            f << (double)i*dt2 << ","
-              << p.x[0] << "," << p.x[1] << "," << p.x[2] << ","
-              << p.v[0] << "," << p.v[1] << "," << p.v[2] << ","
-              << p.bmag << "\n";
-        }
-    }
-
-    // --- VTK legacy (POLYDATA + 标量 |B|) —— ParaView 可直接打开 ---
-    {
-        std::ofstream f( (prefix + ".vtk").c_str() );
-        f << "# vtk DataFile Version 3.0\n";
-        f << "IBSimu-Cycl proton trajectory in PSI Ring field map\n";
-        f << "ASCII\nDATASET POLYDATA\n";
-        f << "POINTS " << traj.size() << " float\n";
-        for( const auto &p : traj )
-            f << p.x[0] << " " << p.x[1] << " " << p.x[2] << "\n";
-        f << "LINES 1 " << (traj.size()+1) << "\n";
-        f << traj.size();
-        for( std::size_t i = 0; i < traj.size(); ++i ) f << " " << i;
-        f << "\n";
-        f << "POINT_DATA " << traj.size() << "\n";
-        f << "SCALARS Bmagnitude float 1\nLOOKUP_TABLE default\n";
-        for( const auto &p : traj ) f << p.bmag << "\n";
-        f << "VECTORS velocity float\n";
-        for( const auto &p : traj ) f << p.v[0] << " " << p.v[1] << " " << p.v[2] << "\n";
-    }
-
-    std::printf( "trajectory: %zu points -> %s.csv, %s.vtk\n",
-                 traj.size(), prefix.c_str(), prefix.c_str() );
-
-    // --- VTK XML（标准格式）：轨迹 .vtp（带时刻，可按时间着色）+ 三维磁场 .vti ---
-    {
-        std::vector<std::vector<TrajectoryPoint>> lines( 1 );
-        lines[0].reserve( traj.size() );
-        for( std::size_t i = 0; i < traj.size(); ++i ) {
-            TrajectoryPoint p;
-            p.t = (double)i*dt2;
-            p.x = traj[i].x;
-            lines[0].push_back( p );
-        }
-        vtk_write_polylines( prefix + ".vtp", lines );
-
-        // 取轨迹包围盒并留 20% 余量，保证场图完整覆盖轨道
-        double xmin = 1e30, xmax = -1e30, ymin = 1e30, ymax = -1e30;
-        for( const auto &p : traj ) {
-            xmin = std::min( xmin, p.x[0] );  xmax = std::max( xmax, p.x[0] );
-            ymin = std::min( ymin, p.x[1] );  ymax = std::max( ymax, p.x[1] );
-        }
-        const double cx   = 0.5*(xmin + xmax);
-        const double cy   = 0.5*(ymin + ymax);
-        const double half = 1.2*0.5*std::max( xmax - xmin, ymax - ymin );
-
-        const int    NFX = 41, NFY = 41, NFZ = 5;
-        const double FH  = 2.0*half/(double)(NFX-1);
-        const double FX0 = cx - half, FY0 = cy - half, FZ0 = -0.02;
-
-        std::vector<double> bmag( (std::size_t)NFX*NFY*NFZ );
-        std::vector<double> bvec( 3*(std::size_t)NFX*NFY*NFZ );
-        for( int k = 0; k < NFZ; ++k )
-            for( int j = 0; j < NFY; ++j )
-                for( int i = 0; i < NFX; ++i ) {
-                    Vec3D bb = B( Vec3D( FX0 + FH*i, FY0 + FH*j, FZ0 + FH*k ) );
-                    std::size_t a = (std::size_t)i
-                        + (std::size_t)NFX*((std::size_t)j + (std::size_t)NFY*k);
-                    bmag[a] = vabs( bb );
-                    bvec[3*a+0] = bb[0];
-                    bvec[3*a+1] = bb[1];
-                    bvec[3*a+2] = bb[2];
-                }
-        vtk_write_image_data( prefix + "_field.vti",
-                              Int3D( NFX, NFY, NFZ ),
-                              Vec3D( FX0, FY0, FZ0 ), Vec3D( FH, FH, FH ),
-                              "Bmag", bmag, "B", bvec );
-
-        // 整机中场图（中平面切片）：覆盖 r∈[1.9, 4.7] m 的 360° 全周，
         // 0.1 m 步长足以分辨 8 折扇形结构。供 plot_field_map.py 绘图。
         const int    NM  = 95;
         const double MDR = 0.1;
@@ -268,13 +176,9 @@ int main( int argc, char **argv )
                               Vec3D( MX0, MX0, 0.0 ), Vec3D( MDR, MDR, MDR ),
                               "Bmag", mmag, "B", mvec );
 
-        std::printf( "VTK XML: %s.vtp (带 t 标量), %s_field.vti (%dx%dx%d 三维 B), "
-                     "%s_map.vti (%dx%d 整机中场图)\n",
-                     prefix.c_str(), prefix.c_str(), NFX, NFY, NFZ,
+        std::printf( "VTK XML: %s_map.vti (%dx%d 整机中场图，不含轨迹)\n",
                      prefix.c_str(), NM, NM );
     }
-
-    check( traj.size() == (std::size_t)n2 + 1, "trajectory written" );
 
     std::printf( "\n%s (%d failure%s)\n",
                  g_failures ? "FAILED" : "ALL TESTS PASSED",

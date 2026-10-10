@@ -50,7 +50,8 @@ def main(argv=None):
         ax[0, 0].plot(real["turn"], real["KE"], "s--", label="real map (scaled)")
     ax[0, 0].set_xlabel("turn")
     ax[0, 0].set_ylabel("kinetic energy [MeV]")
-    ax[0, 0].set_title("Energy gain per turn")
+    ax[0, 0].set_title("Energy gain per turn (uniform B = verified; "
+                       "real map = KNOWN LIMITATION)")
     ax[0, 0].legend(fontsize=9)
     ax[0, 0].grid(True, alpha=0.3)
 
@@ -74,12 +75,15 @@ def main(argv=None):
         ax[1, 1].plot(real["turn"], real["phi"], "s--")
         ax[1, 1].set_xlabel("turn")
         ax[1, 1].set_ylabel(r"RF phase [rad]")
-        ax[1, 1].set_title("Real (scaled) field: phase evolution")
+        ax[1, 1].set_title("Real (scaled) field: NOT a valid acceleration demo\n"
+                           "(radius shrinks while KE rises — unmatched orbit)")
         ax[1, 1].grid(True, alpha=0.3)
     else:
         ax[1, 1].axis("off")
 
-    fig.suptitle("IBSimu-Cycl: multi-turn cyclotron acceleration", fontsize=13)
+    fig.suptitle("IBSimu-Cycl: multi-turn cyclotron acceleration "
+                 "(A: uniform field, verified — B: real field, known limitation)",
+                 fontsize=12)
     fig.tight_layout(rect=[0, 0, 1, 0.97])
     fig.savefig(args.output, dpi=130)
     print(f"saved: {args.output}")
