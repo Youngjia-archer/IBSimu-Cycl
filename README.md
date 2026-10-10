@@ -247,6 +247,17 @@ CUDA Driver API 加载。
 GPU 结果与 CPU 一致到机器精度（400 步后 `dx = 1.4e-14 m`、`dv/v = 3.8e-15`），
 γ 逐粒子相对漂移 `2.0e-15`。该场景下 kernel 占 97%，数据传输仅 2.6%。
 
+## 文档
+
+| 文档 | 内容 |
+| --- | --- |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | 规划、里程碑与逐阶段进展记录（含全部实测数据） |
+| [`docs/UPSTREAM_ARCHITECTURE.md`](docs/UPSTREAM_ARCHITECTURE.md) | **上游 IBSimu 架构总结**：模块地图、数据流、关键约定、并行现状 |
+| [`docs/WORK_LOG.md`](docs/WORK_LOG.md) | **工作日志 / 交接文档**：时间线、关键决策理由、踩坑清单、当前状态与下一步 |
+| [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | 构建与开发说明 |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | 贡献指南 |
+| [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) | 第三方组件许可 |
+
 ## 许可证
 
 本项目为 IBSimu 的派生作品，整体以 **GNU GPL v3.0-or-later** 发布。
