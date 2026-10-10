@@ -35,6 +35,7 @@ cycl_stepper_modes_SOURCES = cycl_stepper_modes.cpp
 cycl_vtk_export_SOURCES = cycl_vtk_export.cpp
 cycl_hdf5_export_SOURCES = cycl_hdf5_export.cpp
 cycl_cuda_tracker_SOURCES = cycl_cuda_tracker.cpp
+cycl_sc_beam_SOURCES = cycl_sc_beam.cpp
 
 check_PROGRAMS = \
 nsimp_plasmacyl \
@@ -73,7 +74,8 @@ cycl_pic_bench \
 cycl_stepper_modes \
 cycl_vtk_export \
 cycl_hdf5_export \
-cycl_cuda_tracker
+cycl_cuda_tracker \
+cycl_sc_beam
 
 TESTS = $(check_PROGRAMS)
 
@@ -94,5 +96,5 @@ endif
 EXTRA_DIST = \
 solver2d_coax.gpl
 
-CLEANFILES = *~ *.png *.eps *.svg *.pdf *.ps *.dat *_vout.txt plasmacyl_emit1.txt beam3d.path libibsimutest.la *.vti *.vtp *.h5
+CLEANFILES = *~ *.png *.eps *.svg *.pdf *.ps *.dat *_vout.txt plasmacyl_emit1.txt beam3d.path libibsimutest.la *.vti *.vtp *.h5 cycl_sc_beam_*
 

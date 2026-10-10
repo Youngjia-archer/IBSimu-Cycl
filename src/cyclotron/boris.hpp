@@ -68,6 +68,10 @@ public:
     void initialize( const VectorField *E, const VectorField *B,
 		     const Vec3D &x, Vec3D &v, double dt ) const;
 
+    /*! \brief 同 \a initialize，但电场以显式矢量给出（逐粒子空间电荷场用）。 */
+    void initialize( const Vec3D &E, const VectorField *B,
+		     const Vec3D &x, Vec3D &v, double dt ) const;
+
     /*! \brief 推进一步（原地更新 \a x, \a v）。
      *
      *  \param E  电场（时变者需在调用前 set_time(t)），可为 NULL
@@ -77,6 +81,14 @@ public:
      *  \param dt 时间步 [s]
      */
     void step( const VectorField *E, const VectorField *B,
+               Vec3D &x, Vec3D &v, double dt ) const;
+
+    /*! \brief 同 \a step，但电场以显式矢量给出（逐粒子空间电荷场用）。
+     *
+     *  空间电荷场是每个粒子各自的矢量，无法用单一 \a VectorField 表示；
+     *  本重载允许调用者先采样/插值出 \a E，再进入标准 Boris 步骤。
+     */
+    void step( const Vec3D &E, const VectorField *B,
                Vec3D &x, Vec3D &v, double dt ) const;
 };
 

@@ -40,9 +40,15 @@ double CBorisPusher::gamma( const Vec3D &v ) const
 void CBorisPusher::initialize( const VectorField *E, const VectorField *B,
                                const Vec3D &x, Vec3D &v, double dt ) const
 {
+    Vec3D e = E ? (*E)( x ) : Vec3D( 0.0, 0.0, 0.0 );
+    initialize( e, B, x, v, dt );
+}
+
+void CBorisPusher::initialize( const Vec3D &e, const VectorField *B,
+                               const Vec3D &x, Vec3D &v, double dt ) const
+{
     const double qm = _q/_m;
 
-    Vec3D e = E ? (*E)( x ) : Vec3D( 0.0, 0.0, 0.0 );
     Vec3D b = B ? (*B)( x ) : Vec3D( 0.0, 0.0, 0.0 );
     Vec3D a = e + crossp( v, b );                 // 未乘 q/m 的加速度方向
 
@@ -60,9 +66,15 @@ void CBorisPusher::initialize( const VectorField *E, const VectorField *B,
 void CBorisPusher::step( const VectorField *E, const VectorField *B,
                          Vec3D &x, Vec3D &v, double dt ) const
 {
+    Vec3D e = E ? (*E)( x ) : Vec3D( 0.0, 0.0, 0.0 );
+    step( e, B, x, v, dt );
+}
+
+void CBorisPusher::step( const Vec3D &e, const VectorField *B,
+                         Vec3D &x, Vec3D &v, double dt ) const
+{
     const double qm = _q/_m;
 
-    Vec3D e = E ? (*E)( x ) : Vec3D( 0.0, 0.0, 0.0 );
     Vec3D b = B ? (*B)( x ) : Vec3D( 0.0, 0.0, 0.0 );
 
     if( !_relativistic ) {

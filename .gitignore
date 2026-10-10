@@ -66,6 +66,10 @@ src/cyclotron/.deps
 /cycl_acceptance_io.h5
 /cycl_acceptance_orbit.vtp
 
+# bunched-beam space-charge study outputs (tests/cycl_sc_beam, root CWD)
+/cycl_sc_beam_*
+/cycl_sc_beam_full.log
+
 # autotools / build outputs
 compile
 test-driver
@@ -84,3 +88,6 @@ tests/*.dat
 /solver*_co*.dat
 /solver3d_*.dat
 /*.dat
+
+# scratch dirs
+/.scratch*/
