@@ -243,8 +243,31 @@ int main( int argc, char **argv )
                               Vec3D( FX0, FY0, FZ0 ), Vec3D( FH, FH, FH ),
                               "Bmag", bmag, "B", bvec );
 
-        std::printf( "VTK XML: %s.vtp (带 t 标量), %s_field.vti (%dx%dx%d 三维 B)\n",
-                     prefix.c_str(), prefix.c_str(), NFX, NFY, NFZ );
+        // 整机中场图（中平面切片）：覆盖 r∈[1.9, 4.7] m 的 360° 全周，
+        // 0.1 m 步长足以分辨 8 折扇形结构。供 plot_field_map.py 绘图。
+        const int    NM  = 95;
+        const double MDR = 0.1;
+        const double MX0 = -0.5*(NM-1)*MDR;
+        std::vector<double> mmag( (std::size_t)NM*NM );
+        std::vector<double> mvec( 3*(std::size_t)NM*NM );
+        for( int j = 0; j < NM; ++j )
+            for( int i = 0; i < NM; ++i ) {
+                Vec3D bb = B( Vec3D( MX0 + MDR*i, MX0 + MDR*j, 0.0 ) );
+                std::size_t a = (std::size_t)i + (std::size_t)NM*j;
+                mmag[a] = vabs( bb );
+                mvec[3*a+0] = bb[0];
+                mvec[3*a+1] = bb[1];
+                mvec[3*a+2] = bb[2];
+            }
+        vtk_write_image_data( prefix + "_map.vti",
+                              Int3D( NM, NM, 1 ),
+                              Vec3D( MX0, MX0, 0.0 ), Vec3D( MDR, MDR, MDR ),
+                              "Bmag", mmag, "B", mvec );
+
+        std::printf( "VTK XML: %s.vtp (带 t 标量), %s_field.vti (%dx%dx%d 三维 B), "
+                     "%s_map.vti (%dx%d 整机中场图)\n",
+                     prefix.c_str(), prefix.c_str(), NFX, NFY, NFZ,
+                     prefix.c_str(), NM, NM );
     }
 
     check( traj.size() == (std::size_t)n2 + 1, "trajectory written" );

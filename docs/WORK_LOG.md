@@ -309,9 +309,18 @@ $O(\omega\Delta t)$ 初始瞬态（磁场**相位**推进仍正确，只有半�
 - [x] `make check` = **34/34**（新增 `cycl_vtk_export`）。
 - [x] CI 两个构建作业增加独立 Python 交叉验证步骤。
 - [x] **接入真实算例**：`tests/cycl_track.cpp`（真实 PSI Ring 磁场图）现额外导出
-  `cycl_track.vtp`（2001 点，带 `t` 标量可按时间着色）与
-  `cycl_track_field.vti`（41×41×5 三维 B，|B| 0.09–1.76 T，反映 8 折扇形结构）。
+  `cycl_track.vtp`（2001 点，带 `t` 标量可按时间着色）、
+  `cycl_track_field.vti`（41×41×5 轨道附近三维 B）与
+  `cycl_track_map.vti`（95×95 **整机中场图**，中平面 360°，r∈[1.9,4.7] m）。
   原 legacy `.vtk` 保留（但**不含时间标量**，是本次补充的动机之一）。
+- [x] **成图**：新增 `examples/cyclotron/plot_field_map.py` →
+  `docs/img/cyclotron_field_map.png`（整机中场 |B| + 五圈轨道、轨道区域放大、
+  |B| 随方位角（45° 周期的 8 折结构）、|B| 随半径（扇区中心 vs 边界））。
+  图中标签统一用英文——与既有 `plot_*.py` 一致，避免 matplotlib 中文字体依赖。
+
+  **端到端自检**：Python 从 `.vti` 读回的 $r=3.3$ m、$\theta=90^\circ$ 处
+  $|B| = 1.557581$ T，与 `cycl_track` 的解析判据**逐位一致**——
+  即“C++ 解析真实场图 → 导出 VTK → Python 读回”全链条无失真。
 - [ ] R3-③：HDF5/openPMD 二进制后端（大网格/大粒子数）；`.pvti` + 二进制追加段。
 
 ---

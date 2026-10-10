@@ -313,9 +313,18 @@ python3 examples/cyclotron/view_3d.py --save out.png orbit.vtp  # 批量出图
 真实算例（PSI Ring 磁场图 + 五圈轨道）也会一并导出，可直接查看：
 
 ```bash
-make -C tests cycl_track && ./tests/cycl_track
-paraview tests/cycl_track_field.vti tests/cycl_track.vtp
+make -C tests cycl_track && (cd tests && ./cycl_track)
+paraview tests/cycl_track_field.vti tests/cycl_track.vtp   # 轨道附近的三维 B + 轨道
+paraview tests/cycl_track_map.vti                          # 整机中场图（中平面 360°）
+python3 examples/cyclotron/plot_field_map.py               # 直接出 PNG
 ```
+
+![PSI Ring field map and orbit](docs/img/cyclotron_field_map.png)
+
+上图由 `examples/cyclotron/plot_field_map.py` 生成：整机中场 $|B|$（可见 **8 折扇形结构**）、
+轨道区域放大（可见非均匀场导致的扇贝形起伏）、$|B|$ 沿方位角（45° 周期）与沿半径的分布。
+轨道与场图均由 `tests/cycl_track` 从真实 `bfield.dat` 重建，
+参考点 $r=3.3$ m、$\theta=90^\circ$ 处 $|B| = 1.557581$ T（与解析判据逐位一致）。
 
 Python 侧另有一套**独立实现**的读取器 `python/ibsimu_cycl/vtk_io.py`：不装 VTK
 也能做后处理，同时充当导出器的交叉验证。
