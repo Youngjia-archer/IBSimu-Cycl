@@ -3,7 +3,7 @@
 > **用途**：跨会话交接。记录已完成的工作、关键决策及其理由、踩过的坑与当前状态。
 > 详细技术叙述见 `ROADMAP.md` 的 §11.x 进展记录；上游结构见 `UPSTREAM_ARCHITECTURE.md`。
 >
-> 最近更新：2026-10-10（提交 `8f0b39c`）
+> 最近更新：2026-10-10（提交 `f3a5b1f`；需求验收见 §11）
 
 ---
 
@@ -41,8 +41,13 @@
 | **R1-②** MG 并行 | `77bb989` `0bb1a5a` | 多重网格平滑/缺陷/限制/修正 OpenMP 化（3D+2D+CYL） | 2.4–3.7× |
 | **R1-③** GPU | `9cf2d5d` | CUDA 后端（NVRTC + Driver API） | **31.6×** vs 单线程 |
 | **R1-③** PIC 修正 | `d57c719` `8f0b39c` | 更正上游并行现状的误判；PIC 基准 + **默认开启多线程** | 端到端 **4.4×** |
+| **R1-④** 步长双路径 | `f457b3c` | `step_particles` 补相对论分支；自适应/固定双路径验证 | 4 组合轨道误差 ~5e-5 |
+| **R3-①/②** VTK | `9c65733` `d652008` | 零依赖 VTK XML 导出 + Python 交叉验证 + 真实算例导出 | 回读逐位一致 |
+| **R2-D** 闭合轨道/加速 | `4889c6d` `cbe0b4e` `837da38` | 真实场闭合轨道起步的 RF 加速；等时性场设计 | 相位滑移 −0.246 → −0.0058 rad/圈 |
+| **R3-③** HDF5 | `33148c2` `f8f339b` `e206a59` | 可选二进制后端（openPMD 风格子集）+ 降级路径实测 | 2.7× 更小 / 2× 更快 |
+| **验收** 门禁 | `f3a5b1f` | `tests/cycl_acceptance`：R1/R2/R3 + P0 一览矩阵 | **42 项全过**；make check 37/37 |
 
-`make check` 当前 **32/32**；CI 三作业（headless / default-GUI / adapter tooling）全绿。
+`make check` 当前 **37/37**；CI 三作业（headless / default-GUI / adapter tooling）全绿。
 
 ---
 
@@ -147,9 +152,15 @@ automake 接受 `.cu` + 自定义规则，但 libtool 会：
 - 用 `git stash push -- <指定文件>` 做单变量前后对比非常有效。
 - **先有基准再优化**：`mgcyc`/`max|phi|` 这类现成指标当场就能暴露语义破坏。
 - **端到端“导出真实轨道”这种带场景的验证，比单元测试更容易暴露物理缺陷**：
-  R3 的可视化导出测试本来是验证 IO，却抳出了 `CBorisPusher` 的 $O(\omega\Delta t)$
+  R3 的可视化导出测试本来是验证 IO，却挖出了 `CBorisPusher` 的 $O(\omega\Delta t)$
   启动瞬态（半径振荡 4.88e-4）。**测得的振荡幅度与理论值符合到 4 位有效数字**
   后才敢确认成因，而不是拍脑袋归因于“数值噪声”。
+- **性能断言的测量窗口不能太短**：0.01 s 级窗口在长套件/后台负载下曾给出
+  **0.32× 的假性回退**（屏障同步会放大瞬时负载的影响）。加固：窗口 ≥0.2 s +
+  3 轮取最优 + 未达标自动重测一轮（见 §11）。
+- **VTK ASCII 写出精度为 12 位有效数字**，回读“逐位一致”断言只能用**可精确
+  表示**的值（如 0.125 的倍数）；`1.0e-9*3` 与解析回的 `3e-09` 相差 1 ulp——
+  曾差点被当成写出器 bug 排查。
 
 ---
 
@@ -172,7 +183,7 @@ src/io/                 本项目新增（命名空间 ibsimu_cycl）
 python/ibsimu_cycl/     Python 侧：vtk_io 读取器（交叉验证 + 后处理）
 adapters/               外部求解器适配器（Elmer / Palace），松耦合文件交换
 examples/cyclotron/     真实算例数据、绘图与三维查看脚本
-tests/cycl_*.cpp        本项目新增的测试与基准（共 15 个）
+tests/cycl_*.cpp        本项目新增的测试与基准（共 18 个）
 docs/                   ROADMAP / DEVELOPMENT / UPSTREAM_ARCHITECTURE / WORK_LOG
 ```
 
@@ -500,10 +511,8 @@ $v_r=-1.60\times10^{7}$ m/s（偏离切向约 5°）。
 
 ## 9. 建议的下一步（按性价比）
 
-1. **R3 可视化（已启动，见 §7）**：`.vti`/`.vtp` 导出 + ParaView/PyVista 通路已完成。
-   下一步是 R3-③：openPMD/HDF5 二进制后端（支持 >1e8 点）、把导出接进真实算例脚本
-   （**已部分完成，见 §7.5**）、以及 Jupyter 教程。
-   （PSI Ring 场图 + 多圈轨道）、以及 Jupyter 教程。
+1. **R3 可视化**：`.vti`/`.vtp`（§7）与 HDF5（§7.5）通路已完成；剩余：把导出接进
+   真实算例脚本、`.pvti` + 二进制追加段、Jupyter 教程。
 2. **物理侧扩展**：注入/引出（螺旋偏转板）、Palace 真实腔模式场接入、
    相对论 RF 渡越。
 3. **GPU 端支持时变/射频场**：让多圈加速也能跑在 GPU 上。
@@ -515,7 +524,8 @@ $v_r=-1.60\times10^{7}$ m/s（偏离切向约 5°）。
 
 ```bash
 ./reconf && ./configure && make -j12     # 构建（含 CUDA 自动探测）
-make check                               # 全部测试（当前 35/35）
+make check                               # 全部测试（当前 37/37）
+./tests/cycl_acceptance                  # 需求验收矩阵 R1/R2/R3 + P0（<2 s）
 ./tests/cycl_poisson_bench 129 257       # 求解器规模扫描
 ./tests/cycl_poisson_bench --2d 1025     # 2D 模式
 ./tests/cycl_poisson_bench --cyl 513 257 # CYL 模式
@@ -525,3 +535,23 @@ IBSIMU_THREADS=1 make check              # 强制串行（严格复现）
 python3 python/tests/test_vtk_io.py      # VTK 导出器的 Python 交叉验证
 python3 examples/cyclotron/view_3d.py a.vti b.vtp   # 三维查看（需 pyvista）
 ```
+
+---
+
+## 11. 需求验收测试（门禁，2026-10-10）
+
+`tests/cycl_acceptance`（提交 `f3a5b1f`）把三大需求与 P0 合规压缩为 **42 项快速检查**
+（<2 s），输出“需求 → 结论”矩阵；已入 `make check`（**37/37**）与 CI 两个构建作业的
+显式门禁步骤。完整矩阵与实测证据见 `docs/ACCEPTANCE.md`。
+
+本次实测：均匀场 12 线程 **6.05×**（并行/串行逐位一致 max|diff|=0）；GPU vs CPU
+max|dx|=1.3e-15 m、max|dv|/v0=6.0e-16；Bz(3.1 m)=1.526363 T；ωc 偏差 1.3e-5；
+RF 渡越 1.6e-4；闭合轨道 r=3.2890 m（scallop 153 mm）；VTK/HDF5 回读逐位一致；
+示例资产 10/10。
+
+设计要点：
+
+- 可选后端（CUDA/HDF5）缺失或不可用 → `[SKIP]` 记通过（无 GPU 的 CI 安全）；
+- 加速比断言带**运行时自检门**（≥4 线程且平凡并行循环实测 ≥2× 才断言）；
+- 测量窗口 ≥0.2 s、3 轮取最优、未达标自动重测一轮——加固前曾在完整套件长跑中
+  出现过一次 0.32× 假性回退（并行段窗口仅 ~10 ms，屏障同步放大瞬时负载）。
