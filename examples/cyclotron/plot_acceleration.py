@@ -7,7 +7,7 @@
 
 读取（存在则用）：
   cycl_accel_locked.csv  —— 均匀场 + 双 RF 间隙（相位锁定，11 圈）
-  cycl_accel_real.csv    —— 真实 PSI Ring 场图（缩放）演示
+  cycl_accel_real.csv    —— 真实 PSI Ring 场图（缩放）+ 闭合轨道起步 + RF 加速
 列：turn,t,KE_MeV,r,phi_rad
 
 IBSimu-Cycl is a derivative work of IBSimu, licensed under GPL-3.0-or-later.
@@ -50,15 +50,22 @@ def main(argv=None):
         ax[0, 0].plot(real["turn"], real["KE"], "s--", label="real map (scaled)")
     ax[0, 0].set_xlabel("turn")
     ax[0, 0].set_ylabel("kinetic energy [MeV]")
-    ax[0, 0].set_title("Energy gain per turn (uniform B = verified; "
-                       "real map = KNOWN LIMITATION)")
+    ax[0, 0].set_title("Energy gain per turn  (design $2qV_0$ = 40 keV/turn)")
     ax[0, 0].legend(fontsize=9)
     ax[0, 0].grid(True, alpha=0.3)
 
-    ax[0, 1].plot(locked["turn"], locked["r"], "o-")
+    # 两条曲线的绝对半径差 17 倍（均匀场 r0≈0.2 m，真实场 r0≈3.3 m），
+    # 用 r/r0 才能在同一坐标下看清「半径随能量外扩」这一共同规律。
+    r0 = locked["r"][0]
+    ax[0, 1].plot(locked["turn"], locked["r"]/r0, "o-",
+                  label="uniform B ($r_0$ = {:.3f} m)".format(r0))
+    if real is not None:
+        ax[0, 1].plot(real["turn"], real["r"]/real["r"][0], "s--",
+                      label="real map, closed orbit ($r_0$ = {:.3f} m)".format(real["r"][0]))
     ax[0, 1].set_xlabel("turn")
-    ax[0, 1].set_ylabel("orbit radius at gap [m]")
+    ax[0, 1].set_ylabel(r"orbit radius at gap,  $r/r_0$")
     ax[0, 1].set_title("Orbit radius grows with energy")
+    ax[0, 1].legend(fontsize=9)
     ax[0, 1].grid(True, alpha=0.3)
 
     ax[1, 0].plot(locked["turn"], locked["phi"], "o-")
@@ -72,18 +79,24 @@ def main(argv=None):
     ax[1, 0].grid(True, alpha=0.3)
 
     if real is not None:
+        nt = real["turn"][-1] - real["turn"][0]
+        slip = (real["phi"][-1] - real["phi"][0])/nt if nt > 0 else 0.0
         ax[1, 1].plot(real["turn"], real["phi"], "s--")
         ax[1, 1].set_xlabel("turn")
         ax[1, 1].set_ylabel(r"RF phase [rad]")
-        ax[1, 1].set_title("Real (scaled) field: NOT a valid acceleration demo\n"
-                           "(radius shrinks while KE rises — unmatched orbit)")
+        ax[1, 1].text(0.03, 0.88,
+                      "slip = {:+.3f} rad/turn".format(slip),
+                      transform=ax[1, 1].transAxes, fontsize=9,
+                      bbox=dict(facecolor="white", edgecolor="0.7", alpha=0.9))
+        ax[1, 1].set_title("Real (scaled) field: $\\omega_{RF}\\neq\\omega_{rev}(r)$\n"
+                           "the scaled map is not isochronous at this energy")
         ax[1, 1].grid(True, alpha=0.3)
     else:
         ax[1, 1].axis("off")
 
     fig.suptitle("IBSimu-Cycl: multi-turn cyclotron acceleration "
-                 "(A: uniform field, verified — B: real field, known limitation)",
-                 fontsize=12)
+                 "(A: uniform field, phase-locked \u2014 B: real field, "
+                 "closed-orbit launch)", fontsize=12)
     fig.tight_layout(rect=[0, 0, 1, 0.97])
     fig.savefig(args.output, dpi=130)
     print(f"saved: {args.output}")

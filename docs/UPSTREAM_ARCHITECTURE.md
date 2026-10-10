@@ -164,7 +164,7 @@ for( size_t i = 0; i < N; i++ ) {
 
 | 类别 | 内容 |
 | --- | --- |
-| **新增模块** `src/cyclotron/` | `CCylFieldMap3D`（柱坐标三维场图，支持方位角变化）、`CRingFieldMap3D`（由中平面 Bz 重建三维场）、`CFieldMap3D`（笛卡尔）、`CTimeVaryingField`（时变场）、`CBorisPusher`（相对论 Boris）、`CEnsembleTracker`（OpenMP 系综）、`CGpuEnsembleTracker`（CUDA） |
+| **新增模块** `src/cyclotron/` | `CCylFieldMap3D`（柱坐标三维场图，支持方位角变化）、`CRingFieldMap3D`（由中平面 Bz 重建三维场）、`CFieldMap3D`（笛卡尔）、`CTimeVaryingField`（时变场）、`CBorisPusher`（相对论 Boris）、`find_closed_orbit()`（单圈映射不动点＝闭合轨道求解）、`CEnsembleTracker`（OpenMP 系综）、`CGpuEnsembleTracker`（CUDA） |
 | **并行化改动** | `epot_mgsubsolver.cpp` / `epot_mgsolver.cpp`：红黑 GS 平滑、缺陷、限制、插值、修正的 OpenMP 化（3D/2D/CYL）；`ibsimu.cpp`：默认线程数改为硬件并发数（可用 `IBSIMU_THREADS` 覆盖） |
 | **新增基准** | `tests/cycl_fieldbench.cpp`（场求值）、`tests/cycl_poisson_bench.cpp`（求解器规模扫描）、`tests/cycl_pic_bench.cpp`（自洽循环时间构成）、`tests/cycl_omp_tracker.cpp`（系综并行）、`tests/cycl_cuda_tracker.cpp`（GPU） |
 | **适配器** `adapters/` | `magnet3d`（Elmer + 场图转换）、`rfcavity3d`（Palace + 解析圆柱腔） |

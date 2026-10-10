@@ -27,7 +27,7 @@ P2/P3/P4 阶段再导入实际输入文件与场图。
 | --- | --- | --- |
 | `plot_field_map.py` | `tests/cycl_track_map.vti` | `docs/img/cyclotron_field_map.png`（整机中场图，**不含任何轨迹**） |
 | `plot_closed_orbit.py` | `tests/cycl_closed_orbit.vtp`（+ 可选 `cycl_track_map.vti` 作底图） | `docs/img/cyclotron_real_orbit.png`（**闭合轨道，单能量**） |
-| `plot_acceleration.py` | `tests/cycl_accel_locked.csv`、`cycl_accel_real.csv` | `docs/img/cyclotron_acceleration.png`（Part B 为**已知限制**） |
+| `plot_acceleration.py` | `tests/cycl_accel_locked.csv`、`cycl_accel_real.csv` | `docs/img/cyclotron_acceleration.png`（Part B：闭合轨道起步 + 真实场加速） |
 | `view_3d.py` | 任意 `.vti` / `.vtp` | 三维交互视图或 PNG（需 `pyvista`） |
 
 典型流程::

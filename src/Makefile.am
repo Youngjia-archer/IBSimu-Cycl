@@ -228,6 +228,8 @@ cyclotron/fieldmap3d.cpp \
 cyclotron/fieldmap3d.hpp \
 cyclotron/boris.cpp \
 cyclotron/boris.hpp \
+cyclotron/closedorbit.cpp \
+cyclotron/closedorbit.hpp \
 cyclotron/ensembletracker.cpp \
 cyclotron/ensembletracker.hpp \
 cyclotron/cuda/gputracker.cpp \

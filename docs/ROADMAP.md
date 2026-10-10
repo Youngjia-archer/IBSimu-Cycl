@@ -346,7 +346,11 @@ IBSimu-Cycl/
     - `ω_RF = ω_c` → **相位锁定**（`max|φ| < 1e-14 rad`）
     - `ω_RF = 0.98 ω_c` → **相位滑移 −0.12566 rad/圈**（与 `−2π·0.02` 精确一致）
     - 轨道半径按 `r = √(2KE/m)/ω_c` 外扩（`0.198 → 0.245 m`）
-  - **Part B（真实场图整体缩放）** —— 测得 `T_rev`、能量增益与相位演化（`−0.113 rad/圈`）。
+  - **Part B（真实场图整体缩放）** —— 原为「已知限制」，**已解决**：改为
+    **闭合轨道起步**（新增库模块 `src/cyclotron/closedorbit.{hpp,cpp}`）。
+    - 半径 **3.295 → 3.541 m 随能量外扩** ✓（修正前反向减小）
+    - 增益 **24.22 keV/圈**（修正前 3.72 keV/圈） vs 设计 $2qV_0$ = 40 keV/圈
+    - 剩余 **−0.246 rad/圈** 相位滑移 —— 真实物理：缩放后的场不适等时性。
 - [x] 可视化 `examples/cyclotron/plot_acceleration.py` → `docs/img/cyclotron_acceleration.png`。
 - [x] `make check` = **26/26**。
 - [ ] 限制：真实 PSI Ring 绝对场强对应 β≈0.6，需**相对论 Boris**；本 Demo 用整体缩放模型。

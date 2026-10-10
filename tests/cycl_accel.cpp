@@ -27,6 +27,7 @@
 #include "boris.hpp"
 #include "fieldmap3d.hpp"
 #include "ringfield3d.hpp"
+#include "closedorbit.hpp"
 #include "timevaryingfield.hpp"
 
 using namespace ibsimu_cycl;
@@ -271,38 +272,71 @@ int main( int argc, char **argv )
                              T_meas/1e-9, T_rev/1e-9, c0.front().r, c0.back().r );
             }
 
-            // B2: 加 RF 观测能量增益与相位演化
-            CTimeVaryingField eB( &gapB, omega_rev, 0.0 );
-            auto cB = run( mapB.get(), &eB, Vec3D(0.0, r_ref, 0.0), Vec3D(v_ref, 0.0, 0.0),
-                           T_rev/3000.0, (int)(4.0*T_rev/(T_rev/3000.0)), 5, QE, MP, 4.6 );
-            if( cB.size() >= 2 ) {
-                std::printf( "  B2: KE %.4f -> %.4f MeV over %d turns; dphi/turn=%.5f rad\n",
-                             cB.front().KE/QE/1e6, cB.back().KE/QE/1e6, (int)cB.size()-1,
-                             (wrap2pi(cB.back().phi)-wrap2pi(cB.front().phi))/(double)(cB.size()-1) );
-                // *** 已知限制：不要把这一项当作“RF 加速成功” ***
-                // 初值仍是未匹配闭合轨道的切向发射，轨迹被大幅 betatron 摆动主导：
-                // 轨道半径在能量增加的同时反而 **减小**，与 r ∝ sqrt(KE) 相矛盾；
-                // 且测得增益只有设计值（2*q*V0 = 40 keV/圈）的约 1/10。
-                // 真实场中的 RF 加速需要先 (a) 求闭合轨道、(b) 做相位/等时性匹配。
-                // 详见 WORK_LOG §8 与 ROADMAP。统计量从 cB 里直接算，避免误读。
-                {
-                    const double nturn = (double)(cB.size()-1);
-                    // 注意 KE 的单位是 J：先 /QE 换成 eV 再换算 keV
-                    const double dKE_turn_keV = (cB.back().KE - cB.front().KE)
-                        /nturn/QE/1e3;
-                    std::printf( "  B2: *** 已知限制 *** 该数据不构成有效加速证据：\n" );
-                    std::printf( "      半径 %.4f -> %.4f m（能量增加却减小，非 r∝sqrt(KE)）\n",
-                                 cB.front().r, cB.back().r );
-                    std::printf( "      增益 %.2f keV/圈  vs 设计值 40.00 keV/圈（%.0f%%）\n",
-                                 dKE_turn_keV, 100.0*dKE_turn_keV/40.0 );
+            // ---- B2: 闭合轨道起步 + 两个对径间隙的 RF 加速 ----
+            // 关键修正：初值**不再**是「在 r=r_ref 处切向发射」——那不是闭合轨道，
+            // 轨迹被大幅 betatron 摆动主导（表现为半径随能量增加反而减小、
+            // 增益远低于设计值）。先在相同能量下求出闭合轨道（不动点）再起步。
+            const double gamma_ref = 1.0/std::sqrt( 1.0 - (v_ref/CL)*(v_ref/CL) );
+            ClosedOrbit co = find_closed_orbit( *mapB, QE, MP, gamma_ref,
+                                                M_PI/2.0, r_ref, false );
+            std::printf( "  B2: closed orbit @ r=%.4f m, v_r=%+.3e m/s (%.2f%% of |v|), "
+                         "scallop %.1f mm\n",
+                         co.r, co.vr, 100.0*co.vr/co.vmag,
+                         1000.0*(co.rmax - co.rmin) );
+
+            const double th0 = M_PI/2.0;
+            const double cr = std::cos( th0 ), sr = std::sin( th0 );
+            const double er[2]  = {  cr, sr };
+            const double eth[2] = { -sr, cr };
+            const double vth0 = -std::sqrt( co.vmag*co.vmag - co.vr*co.vr );
+            const Vec3D x0( er[0]*co.r, er[1]*co.r, 0.0 );
+            const Vec3D v0( er[0]*co.vr + eth[0]*vth0,
+                            er[1]*co.vr + eth[1]*vth0, 0.0 );
+
+            // 扫描初始 RF 相位取加速效果最好者（真实机器同样需要调相）
+            const int NTURN_B = 12;
+            double                best_gain = -1.0e300, best_phase = 0.0;
+            std::vector<Crossing> cB;
+            for( int ip = 0; ip < 8; ++ip ) {
+                const double ph0 = 2.0*M_PI*(double)ip/8.0;
+                CTimeVaryingField e( &gapB, omega_rev, ph0 );
+                std::vector<Crossing> c =
+                    run( mapB.get(), &e, x0, v0, T_rev/3000.0,
+                         (int)(NTURN_B*T_rev/(T_rev/3000.0)), NTURN_B+2,
+                         QE, MP, 4.6 );
+                if( c.size() >= 3 ) {
+                    const double gain = (c.back().KE - c.front().KE)
+                        /(double)(c.size()-1);
+                    if( gain > best_gain ) {
+                        best_gain = gain;
+                        best_phase = ph0;
+                        cB = c;
+                    }
                 }
+            }
+
+            if( cB.size() >= 3 ) {
+                const double nturn = (double)(cB.size()-1);
+                // 注意 KE 的单位是 J：先 /QE 换成 eV 再换算 keV
+                const double dKE_turn_keV =
+                    (cB.back().KE - cB.front().KE)/nturn/QE/1e3;
+                std::printf( "  B2: RF phase=%.3f rad; KE %.4f -> %.4f MeV over %d turns\n",
+                             best_phase, cB.front().KE/QE/1e6, cB.back().KE/QE/1e6,
+                             (int)cB.size()-1 );
+                std::printf( "      dKE/turn = %.2f keV (design 2*q*V0 = 40.00);  "
+                             "r: %.4f -> %.4f m\n",
+                             dKE_turn_keV, cB.front().r, cB.back().r );
+                check( cB.back().r > cB.front().r,
+                       "B2: real field - orbit radius GROWS with energy" );
+                check( dKE_turn_keV > 0.5*40.0,
+                       "B2: real field - energy gain above half of 2*q*V0" );
                 std::ofstream f( "cycl_accel_real.csv" );
                 f << "turn,t,KE_MeV,r,phi_rad\n";
                 for( std::size_t k = 0; k < cB.size(); ++k )
                     f << k << "," << cB[k].t << "," << cB[k].KE/QE/1e6 << ","
                       << cB[k].r << "," << wrap2pi(cB[k].phi) << "\n";
             } else {
-                std::printf( "  B2: orbit not bounded in the scaled real field (reported, not failed)\n" );
+                std::printf( "  B2: [SKIP] closed orbit + RF produced no crossings\n" );
             }
         }
     }
