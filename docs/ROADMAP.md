@@ -526,15 +526,21 @@ KE=210.14 MeV、f_rev 误差 1.976%、Bz(中平面)=1.557581 T 均完全一致�
 
 #### 代码核实（上游并行现状）
 
+> **⚠️ 更正（2026-10-10）**：本节最初写「上游没有任何并行」是**错误的**——当时只检索了
+> `src/*.cpp`，漏掉了 `src/particledatabaseimp.hpp`。上游**已经有多线程轨迹追踪**。
+
 | 事实 | 证据 |
 | --- | --- |
 | 空间电荷能力确实存在 | `scharge.hpp/cpp`：PIC 沉积（2D/柱对称/3D）；求解器有 `EpotGSSolver`、`EpotBiCGSTABSolver`（Diag/ILU0/ILU1 预条件）、`EpotUMFPACKSolver`、`EpotMGSolver`（多重网格） |
-| **全代码库无一处 OpenMP** | `#pragma omp` 只出现在本项目新增的 `src/cyclotron/` |
-| pthread 只用于几何网格构建 | `pthread_create` 在所有 `.cpp` 中仅 1 处：`geometry.cpp:1309` |
-| `Scheduler` 线程类从未被使用 | 全库无任何 `.cpp` 实例化它 |
-| 电荷沉积的多线程接口已预留但未启用 | `scharge_add_from_trajectory_pic(..., pthread_mutex_t*)`、`particledatabaseimp.hpp` 的 `scharge_mutex` |
+| 无 OpenMP（并行基于 pthread） | `#pragma omp` 只出现在本项目新增的 `src/cyclotron/` |
+| **轨迹追踪已支持多线程** | `IBSimu::set_thread_count(N)` + `Scheduler` 线程池；`particledatabaseimp.hpp` 为 N 个 `ParticleIterator` 各建一个 pthread。**默认 `_threadcount = 1`（等于关闭）** |
+| pthread 也用于几何网格构建 | `geometry.cpp:1309` |
+| **电荷沉积用单一全局互斥锁** | `scharge_add_from_trajectory_pic(..., pthread_mutex_t*)`：临界区仅 4 次累加，但每条轨迹片段都要 lock/unlock → 线程扩展性瓶颈；且累加顺序随线程数变化 → 结果不可复现 |
+| 自洽迭代循环位于**用户代码** | 如 `tests/nsimp_plasma3d.cpp`：`for(i<8){ solver.solve(epot,scharge); pdb.iterate_trajectories(...); }`；示例默认用 `EpotBiCGSTABSolver`（`EpotMGSolver` 被注释掉） |
 
-→ **粒子推进、电荷沉积、Poisson 求解三者在上游全是串行的**；缺的是「单机并行」，不是「跨节点」。
+→ 正确的结论应当是：**每代的空间电荷求解是串行的**（已由 §11.12 并行化），
+而**粒子追踪上游本可多线程但默认关闭、且受沉积锁瓶颈限制**；缺的是
+「消除沉积锁 + 默认开启并行 + 用更快的求解器」，而不是「从零做并行」。
 
 #### 实测：单节点求解器规模扫描
 
@@ -658,3 +664,43 @@ IBSimu 的两大主力场景（离子源引出、轴对称束流）都是 2D/CYL
 CYL 均为 12 循环）；`make check` = **31/31**（含 `solver2d_coax`、`solvercyl_coax`、
 `solver3d_sphere` 等与解析解对比的测试）。
 基准也已扩展：`cycl_poisson_bench --2d <n>`、`--cyl <nz> <nr>`（默认仍为 3D 65³）。
+
+### 11.13 自洽迭代（PIC）流水线的并行化分析（待办）
+
+**背景**：空间电荷与粒子分布相互依赖，稳态求解必须迭代——「并行追踪一代粒子 →
+沉积得到空间电荷 → 求解 Poisson → 用新场重新追踪」，直到收敛。这正是 IBSimu 的
+标准结构（`Convergence` + 用户代码里的迭代循环），以 `tests/nsimp_plasma3d.cpp` 为例：
+
+```cpp
+EpotBiCGSTABSolver solver( geom );
+for( size_t i = 0; i < 8; i++ ) {
+    solver.solve( epot, scharge );                        // ① 每代求解空间电荷
+    pdb.iterate_trajectories( scharge, efield, bfield );   // ② 每代追踪粒子
+}
+```
+
+**每代两个热点的核查结论**：
+
+| 环节 | 上游状态 | 本项目状态 |
+| --- | --- | --- |
+| ① 空间电荷求解 | 串行 | ✅ 已并行化 `EpotMGSolver`（2.4–3.7×，§11.12）。**但示例默认用 `EpotBiCGSTABSolver`**（未并行，且慢 1.6–3.5×、多耗 6.5× 内存）→ 循环里换 MG 即免费加速 |
+| ② 轨迹追踪 | 有多线程能力（`IBSimu::set_thread_count` + `Scheduler` 线程池 + 每线程一个 `ParticleIterator`），**默认关闭**（`_threadcount = 1`） | ❌ 未改造。本项目的 OpenMP/GPU 系综跟踪器走的是**另一条路径**（Boris 固定步长 + 静态场），不能直接替入自洽循环 |
+| ③ 电荷沉积 | **单一全局互斥锁**（`scharge_add_from_trajectory_pic`） | ❌ 未改造 |
+
+**已识别的缺陷**：
+
+- 沉积锁的临界区**只有 4 次 double 累加**，却每条轨迹片段都要 lock/unlock →
+  锁开销远超有效工作，线程越多争用越重，扩展性差；
+- 沉积累加顺序随线程数变化 → **自洽迭代的收敛轨迹不可复现**（对调试与验证是隐患）；
+- 迭代循环写在**用户代码**里（库无法自动重构流水线），因此并行化必须
+  在「每代两个内核」这一层做，或提供一个可选的并行驱动。
+
+**建议顺序**（未测量前不动手）：
+
+1. 测量：用 `nsimp_plasma3d` 等真实算例，测出 ①/② 的时间占比与
+   `set_thread_count(1/2/4/6)` 的实际扩展曲线；
+2. 若沉积锁是瓶颈：改为**每线程私有累积网格 + 固定顺序归约**（同时解决锁竞争与确定性）；
+3. 循环里改用 `EpotMGSolver`（已并行、且更快更省内存）；
+4. 最后才谈把 Boris/GPU 路径接入自洽循环——那是**物理模型选择**
+   （GSL 自适应积分 vs Boris 固定步长），需先确认对离子源/低能束场景的适用性，
+   不是纯性能问题。
