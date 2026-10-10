@@ -318,8 +318,8 @@ IBSimu-Cycl/
 - [x] **端到端 Demo（D1）** —— `tests/cycl_track.cpp`：真实 PSI Ring 磁场 → `CRingFieldMap3D`
   三维场 → Boris 推动器 → 校验回旋频率（测得 `1.492997e8` vs 解析 `1.491981e8 rad/s`，
   相对误差 **6.8e-4**）+ 速率守恒（`1.6e-15`，机器精度）+ 中平面约束；
-  输出 `cycl_track.csv` 与 `cycl_track.vtk`（ParaView 可读）。
-  可视化脚本 `examples/cyclotron/plot_trajectory.py` 生成 `docs/img/cyclotron_orbit.png`
+  输出 `cycl_track_map.vti`（整机中场图；原先的局部螺旋轨迹与 `cycl_track.csv` 已删除）。
+  当前可视化脚本为 `examples/cyclotron/plot_field_map.py` → `docs/img/cyclotron_field_map.png`
   （可清楚看到 **8 折扇区**引起的场强波动）。
 - [x] `make check` = **24/24**。
 ### 11.5 P3 进展（RF 谐振腔）
@@ -366,8 +366,9 @@ IBSimu-Cycl/
   - **真实 PSI Ring 场强**（$r=3.3$ m，$\langle B\rangle=0.669$ T）：$\gamma=1.224$、
     $\beta=0.577$、**KE = 210 MeV**、轨道有界（$r\in[2.94,3.56]$ m）、$\gamma$ 守恒 `3.6e-16`、
     $f_{rev}$ 与 $q\langle B\rangle/(2\pi\gamma m)$ 差 **1.98%**
-- [x] 可视化 `examples/cyclotron/plot_relativistic_orbit.py` → `docs/img/cyclotron_real_orbit.png`
-  （可见 8 折扇形导致的扇贝形轨道）。
+- [x] 可视化 `examples/cyclotron/plot_closed_orbit.py` → `docs/img/cyclotron_real_orbit.png`
+  （闭合轨道：单圈映射的不动点；可见 8 折扇形导致的扇贝形轨道）。
+  注：原 `plot_relativistic_orbit.py` 画的是未匹配闭合轨道的轨迹，已删除。
 - [x] `make check` = **27/27**。
 - [ ] 后续：P4 的 Part B 可改用**真实场强**（无需缩放）；注入/引出；R1 并行化/GPU（P5）；
   R3（openPMD/HDF5 + 3D 交互可视化）。
