@@ -28,6 +28,7 @@ cycl_relativistic_SOURCES = cycl_relativistic.cpp
 cycl_omp_tracker_SOURCES = cycl_omp_tracker.cpp
 cycl_fieldbench_SOURCES = cycl_fieldbench.cpp
 cycl_poisson_bench_SOURCES = cycl_poisson_bench.cpp
+cycl_pic_bench_SOURCES = cycl_pic_bench.cpp
 cycl_cuda_tracker_SOURCES = cycl_cuda_tracker.cpp
 
 check_PROGRAMS = \
@@ -61,6 +62,7 @@ cycl_relativistic \
 cycl_omp_tracker \
 cycl_fieldbench \
 cycl_poisson_bench \
+cycl_pic_bench \
 cycl_cuda_tracker
 
 TESTS = $(check_PROGRAMS)

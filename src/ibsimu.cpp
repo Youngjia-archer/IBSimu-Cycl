@@ -43,8 +43,10 @@
 
 #include "config.h"
 #include "id.hpp"
+#include <cstdlib>
 #include <iostream>
 #include <signal.h>
+#include <thread>
 #include "ibsimu.hpp"
 #include "timer.hpp"
 #include "error.hpp"
@@ -58,8 +60,34 @@ IBSimu::IBSimu( const IBSimu &ibs )
 }
 
 
+/*! \brief 默认计算线程数。
+ *
+ *  IBSimu-Cycl: 上游默认是 1（等于关闭多线程）。但在自洽 PIC 迭代中，
+ *  轨迹追踪（含电荷沉积）占 ~92% 的耗时且几乎线性可扩展（实测 6 核
+ *  trace 5.1x、端到端 4.4x），默认关闭等于白白放弃这部分性能。
+ *  因此这里默认取硬件并发数，优先级为：
+ *    1. 环境变量 IBSIMU_THREADS=N（供用户/脚本覆盖）
+ *    2. std::thread::hardware_concurrency()
+ *  代码里仍可随时调用 set_thread_count() 显式指定。
+ *
+ *  注意：电荷沉积的累加顺序随线程数变化，不同线程数下结果有 ~1e-15 量级
+ *  差异（见 docs/ROADMAP.md §11.13）；需要严格复现时请设 IBSIMU_THREADS=1。
+ */
+static uint32_t default_thread_count( void )
+{
+    const char *env = getenv( "IBSIMU_THREADS" );
+    if( env ) {
+	int n = atoi( env );
+	if( n >= 1 )
+	    return( (uint32_t)n );
+    }
+    unsigned hc = std::thread::hardware_concurrency();
+    return( hc > 0 ? (uint32_t)hc : 1u );
+}
+
+
 IBSimu::IBSimu()
-    : _hello(false), _threadcount(1), _rng(RNG_SOBOL), _os(&std::cout), _indent(0)
+    : _hello(false), _threadcount(default_thread_count()), _rng(RNG_SOBOL), _os(&std::cout), _indent(0)
 {
     // Set message level thresholds to defaults
     for( int a = 0; a < MSG_COUNT; a++ )
