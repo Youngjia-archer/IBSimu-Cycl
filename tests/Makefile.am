@@ -32,6 +32,7 @@ cycl_poisson_bench_SOURCES = cycl_poisson_bench.cpp
 cycl_pic_bench_SOURCES = cycl_pic_bench.cpp
 cycl_stepper_modes_SOURCES = cycl_stepper_modes.cpp
 cycl_vtk_export_SOURCES = cycl_vtk_export.cpp
+cycl_hdf5_export_SOURCES = cycl_hdf5_export.cpp
 cycl_cuda_tracker_SOURCES = cycl_cuda_tracker.cpp
 
 check_PROGRAMS = \
@@ -69,6 +70,7 @@ cycl_poisson_bench \
 cycl_pic_bench \
 cycl_stepper_modes \
 cycl_vtk_export \
+cycl_hdf5_export \
 cycl_cuda_tracker
 
 TESTS = $(check_PROGRAMS)
@@ -78,9 +80,9 @@ libibsimutest_la_SOURCES = \
 ibsimutest.cpp \
 ibsimutest.hpp
 
-AM_CPPFLAGS = $(CPPFLAGS) -Wall -g -I$(top_srcdir)/src -I$(top_srcdir)/src/cyclotron -I$(top_srcdir)/src/io -I$(top_srcdir)/src/cyclotron/cuda $(OPENMP_CXXFLAGS)
-AM_LDFLAGS = $(LIBS) -L$(top_srcdir)/src @rdynamic_flag@ $(OPENMP_CXXFLAGS) $(CUDA_LDFLAGS)
-LDADD = $(top_builddir)/src/libibsimu-1.0.6dev.la libibsimutest.la -lm
+AM_CPPFLAGS = $(CPPFLAGS) -Wall -g -I$(top_srcdir)/src -I$(top_srcdir)/src/cyclotron -I$(top_srcdir)/src/io -I$(top_srcdir)/src/cyclotron/cuda $(OPENMP_CXXFLAGS) $(HDF5_CPPFLAGS)
+AM_LDFLAGS = $(LIBS) -L$(top_srcdir)/src @rdynamic_flag@ $(OPENMP_CXXFLAGS) $(CUDA_LDFLAGS) $(HDF5_LDFLAGS)
+LDADD = $(top_builddir)/src/libibsimu-1.0.6dev.la libibsimutest.la -lm $(HDF5_LIBS)
 
 if CSG
 AM_CPPFLAGS += `pkg-config --cflags csg`

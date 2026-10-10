@@ -2,13 +2,14 @@ lib_LTLIBRARIES = libibsimu-1.0.6dev.la
 
 # 注意：automake 为 libtool 库生成的链接命令**不包含** AM_LDFLAGS，因此
 # 目标相关的链接参数（如 CUDA 的 -L）必须放在 <target>_LDFLAGS 里。
-libibsimu_1_0_6dev_la_LDFLAGS = -version-info 0:1:0 $(CUDA_LDFLAGS)
+libibsimu_1_0_6dev_la_LDFLAGS = -version-info 0:1:0 $(CUDA_LDFLAGS) $(HDF5_LDFLAGS)
 
 AM_LDFLAGS = -Wall @rdynamic_flag@ @lt_enable_auto_import@ $(OPENMP_CXXFLAGS) $(CUDA_LDFLAGS)
-AM_CPPFLAGS = -Wall -I$(srcdir)/cyclotron -I$(srcdir)/io $(CUDA_CPPFLAGS) $(OPENMP_CXXFLAGS)
+AM_CPPFLAGS = -Wall -I$(srcdir)/cyclotron -I$(srcdir)/io $(CUDA_CPPFLAGS) $(OPENMP_CXXFLAGS) $(HDF5_CPPFLAGS)
 
 # 可选的 CUDA GPU 后端（NVRTC + Driver API）；未探测到 CUDA 时 CUDA_LIBS 为空
-libibsimu_1_0_6dev_la_LIBADD = $(CUDA_LIBS)
+# 可选的 HDF5 二进制 IO 后端；未探测到时 hdf5writer 退化为抛异常的桩
+libibsimu_1_0_6dev_la_LIBADD = $(CUDA_LIBS) $(HDF5_LIBS)
 
 libibsimu_1_0_6dev_la_SOURCES = \
 axisymmetricvectorfield.cpp \
@@ -236,7 +237,9 @@ cyclotron/cuda/gputracker.cpp \
 cyclotron/cuda/gputracker.hpp \
 cyclotron/cuda/gpu_kernels.cu.h \
 io/vtkwriter.cpp \
-io/vtkwriter.hpp
+io/vtkwriter.hpp \
+io/hdf5writer.cpp \
+io/hdf5writer.hpp
 
 libibsimu_1_0_6dev_la_includedir=$(includedir)/ibsimu-1.0.6dev
 libibsimu_1_0_6dev_la_include_HEADERS = \

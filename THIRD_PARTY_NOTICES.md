@@ -17,6 +17,8 @@
 | fontconfig | 系统 | MIT-like | 链接 | ✅ |
 | freetype2 | 系统 | FTL / GPL-2.0-or-later | 链接 | ✅ |
 | GTK+3（可选） | 系统 | LGPL-2.1-or-later | 链接（可选） | ✅ |
+| HDF5 (The HDF Group) | 系统库（可选） | BSD-3-like（HDF5 License） | 链接（可选，R3-③ 已实现） | ✅ |
+| h5py | pip/系统 | BSD-3 | Python 软依赖（可选） | ✅ |
 | cairo（可选） | 系统 | LGPL-2.1 / MPL-1.1 | 链接（可选） | ✅ |
 
 ## 计划整合（离线生成场图，外部程序）
@@ -34,7 +36,6 @@
 | 组件 | 用途 | 许可证 | 整合方式 | 兼容性 |
 | --- | --- | --- | --- | --- |
 | openPMD-api | 场图/粒子 IO | LGPL-3.0-or-later | 链接 | ⚠️ 待核实（LGPL 动态链接通常可行） |
-| HDF5 (The HDF Group) | 容器 | BSD-3 | 链接（可选，R3-③ 计划） | ✅ |
 | Kokkos | 性能可移植（CPU/GPU） | Apache-2.0 | 链接 | ⚠️ 仅在与 GPL-3.0 组合时可链接 |
 | MPI | 多节点 | 各实现许可 | 链接 | ✅ |
 | hypre | 并行 AMG | MIT / Apache-2.0 | 链接 | ✅ |

@@ -386,7 +386,9 @@ tr = read("orbit.vtp"); tr.points.shape, len(tr.lines)
 验证：`tests/cycl_vtk_export.cpp`（导出 → 逐值回读校验 + 真实轨道端到端）与
 `python/tests/test_vtk_io.py`（**不同语言、不同实现**的交叉校验，CI 两个构建作业均运行）。
 
-> 大规模数据（>1e8 点）的二进制/追加段后端（HDF5/openPMD、`.pvti`）见 ROADMAP R3-③。
+> 大规模数据（>1e8 点）有可选的 **HDF5 二进制后端**（`src/io/hdf5writer`，
+> `configure` 自动探测；实测 128³ 场图 12.6 MB vs ASCII 33.9 MB，且支持分块随机读取），
+> Python 侧用 `ibsimu_cycl.hdf5_io` 读取，返回与 `vtk_io` 同型的对象。见 ROADMAP §11.17。
 
 ### 顺带修正的一个精度问题
 

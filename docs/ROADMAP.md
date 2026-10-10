@@ -842,4 +842,40 @@ $O(\omega\Delta t)$ 初始瞬态（磁场的**相位**推进仍然正确，只�
 - [x] CI 增加独立 Python 交叉验证步骤
 - [x] 接入真实算例：`tests/cycl_track.cpp` 额外导出 `cycl_track.vtp`（带时刻）与
   `cycl_track_field.vti`（41×41×5 真实三维 B，|B| 0.09–1.76 T）
-- [ ] R3-③：HDF5/openPMD 二进制后端（大网格/大粒子数）；`.pvti` + 二进制追加段
+- [x] R3-③：HDF5/openPMD 二进制后端（大网格/大粒子数）——见 §11.17。
+  `.pvti` + 二进制追加段与 openPMD 完备互操作仍待办。
+
+### 11.17 R3-③ 进展（HDF5 二进制后端）
+
+零依赖的 VTK XML 是纯文本（实测 16.94 B/点，200³ 网格≈1 GB）。本节补上可选二进制通路。
+
+| 组件 | 说明 |
+| --- | --- |
+| `src/io/hdf5writer.{hpp,cpp}` | 可选后端；`configure` 自动探测（`--with-hdf5=DIR` / `--without-hdf5`），未探测到时是抛异常的桩 |
+| `tests/cycl_hdf5_export.cpp` | 写入 → **HDF5 C API 独立回读** → 逐位比较 + 属性/索引次序 + 大数据对比 + hyperslab 分块读 |
+| `python/ibsimu_cycl/hdf5_io.py` | 独立读取器（h5py 软依赖），返回与 `vtk_io` 同型的 `ImageData`/`PolyData` |
+| `python/tests/test_hdf5_io.py` | 夹具自检 + C++ 产物交叉验证（无 h5py 时跳过） |
+
+布局（属性名沿用 openPMD 2.0 的命名与单位约定，但**不宣称合规**）：
+
+    /data/<iter>/meshes/<name>/<scalar>   (nz,ny,nx)     @unitSI
+    /data/<iter>/meshes/<name>/<vector>   (nz,ny,nx,3)   @unitSI
+    /data/<iter>/particles/<name>/{position(N,3), time(N), offset(M+1), count(M)}
+
+数据集形状轴序反转为 (nz,ny,nx)，C 序连续内存即 **i 最快**（与 `.vti` 一致）。
+粒子的轨迹布局是本项目的简化布局：openPMD 的 `particles` 记录以“每步一份粒子表”
+为模型，与“每个粒子一条轨迹”不是同一件事。
+
+**实测（128³ = 2.1 M 点，光滑场）**
+
+| 通路 | 体积 | 字节/点 | 写盘 CPU 时间 |
+| --- | --- | --- | --- |
+| ASCII `.vti` | 33.9 MB | 16.94 | 0.66 s |
+| HDF5（shuffle + deflate 6） | **12.6 MB** | **6.32** | 0.32 s |
+
+2.7× 更小、2× 更快；结构性收益是**分块随机读取**：取一个 128×128 平面只要 0.2 ms。
+
+- [x] `make check` = **36/36**（无 HDF5 时新测试优雅跳过）
+- [x] CI 两个 C++ 作业装 `libhdf5-dev` + `python3-h5py`，并新增 HDF5 交叉验证步骤
+- [x] 交叉验证抓到真 bug：矢量数据集声明 `(3,nz,ny,nx)` 而实际写入按点交错缓冲；
+      C++ 侧只比扁平字节所以漏过，Python 侧读出来分量比例不对才暴露（详见 WORK_LOG §7.5）

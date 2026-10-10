@@ -348,6 +348,92 @@ dnl strerror_r
 AC_FUNC_STRERROR_R
 
 dnl ---------------------------------
+dnl HDF5 二进制 IO 后端 (IBSimu-Cycl: optional)
+dnl
+ dnl   --without-hdf5    禁用
+dnl   --with-hdf5=DIR   指定 HDF5 前缀
+ dnl
+ dnl   用于大规模数据（>1e8 点）的场图/粒子导出（ROADMAP R3-④）。
+ dnl   未探测到时 vtkwriter 的零依赖 VTK XML 通路仍然可用。
+dnl ---------------------------------
+AC_ARG_WITH([hdf5],
+    [AS_HELP_STRING([--with-hdf5@<:@=DIR@:>@],
+                    [HDF5 prefix for the optional binary IO backend (auto-detected)])],
+    [], [with_hdf5=auto])
+
+have_hdf5=no
+HDF5_CPPFLAGS=""
+HDF5_LDFLAGS=""
+HDF5_LIBS=""
+
+if test "x$with_hdf5" != "xno"; then
+    if test "x$with_hdf5" = "xauto" || test "x$with_hdf5" = "xyes"; then
+        dnl 优先用 pkg-config：Debian/Ubuntu 把头文件放在
+        dnl /usr/include/hdf5/serial 下，只有 pkg-config 知道这个路径。
+        for hdf5_pc in hdf5 hdf5-serial; do
+            if $PKG_CONFIG --exists "$hdf5_pc" 2>/dev/null; then
+                HDF5_CPPFLAGS=`$PKG_CONFIG --cflags "$hdf5_pc"`
+                HDF5_LIBS=`$PKG_CONFIG --libs "$hdf5_pc"`
+                have_hdf5=yes
+                break
+            fi
+        done
+        if test "x$have_hdf5" = "xno"; then
+            for hdf5_p in /usr /usr/local; do
+                if test -f "$hdf5_p/include/hdf5.h"; then
+                    for hdf5_libd in "$hdf5_p/lib" "$hdf5_p/lib64"; do
+                        if test -f "$hdf5_libd/libhdf5.so" || test -f "$hdf5_libd/libhdf5.a"; then
+                            have_hdf5=yes
+                            HDF5_CPPFLAGS="-I$hdf5_p/include"
+                            HDF5_LDFLAGS="-L$hdf5_libd"
+                            HDF5_LIBS="-lhdf5"
+                            break
+                        fi
+                    done
+                fi
+                if test "x$have_hdf5" = "xyes"; then break; fi
+            done
+        fi
+    else
+        dnl 显式前缀：必须**真的**找到头文件与库才置 have_hdf5=yes，
+        dnl 否则 configure 会假装成功、到编译时才炸（也允许 Debian 的
+        dnl include/hdf5/serial 布局）。
+        hdf5_inc="$with_hdf5/include"
+        if test -f "$with_hdf5/include/hdf5/serial/hdf5.h"; then
+            hdf5_inc="$with_hdf5/include/hdf5/serial"
+        fi
+        hdf5_libd=""
+        for hdf5_d in "$with_hdf5/lib" "$with_hdf5/lib64"; do
+            if test -f "$hdf5_d/libhdf5.so" || test -f "$hdf5_d/libhdf5.a"; then
+                hdf5_libd="$hdf5_d"
+                break
+            fi
+        done
+        if test -f "$hdf5_inc/hdf5.h" && test -n "$hdf5_libd"; then
+            have_hdf5=yes
+            HDF5_CPPFLAGS="-I$hdf5_inc"
+            HDF5_LDFLAGS="-L$hdf5_libd"
+            HDF5_LIBS="-lhdf5"
+        fi
+    fi
+fi
+
+if test "x$have_hdf5" = "xyes"; then
+    AC_DEFINE([IBSIMU_CYCL_HAVE_HDF5], [1],
+              [Define to 1 if the optional HDF5 binary IO backend is enabled])
+    AC_MSG_NOTICE([HDF5 binary IO backend: enabled ($HDF5_CPPFLAGS $HDF5_LDFLAGS $HDF5_LIBS)])
+else
+    if test "x$with_hdf5" = "xno"; then
+        AC_MSG_NOTICE([HDF5 binary IO backend: disabled by --without-hdf5])
+    else
+        AC_MSG_NOTICE([HDF5 binary IO backend: disabled (library not found; use --with-hdf5=DIR)])
+    fi
+fi
+AC_SUBST([HDF5_CPPFLAGS])
+AC_SUBST([HDF5_LDFLAGS])
+AC_SUBST([HDF5_LIBS])
+
+dnl ---------------------------------
 dnl Output
 dnl ---------------------------------
 
