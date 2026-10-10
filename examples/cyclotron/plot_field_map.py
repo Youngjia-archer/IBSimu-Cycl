@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# NOTE: B_REF_DIRECT is the value tests/cycl_track prints from evaluating the
+# field map directly (not through the 0.1 m export grid).
 """绘制 PSI Ring **整机中场图**（**不含任何粒子轨迹**）。
 
 数据来源是 ``tests/cycl_track`` 导出的标准 VTK XML（见 ``src/io/vtkwriter``）::
@@ -42,6 +44,8 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "python"))
 
 from ibsimu_cycl.vtk_io import read  # noqa: E402
+
+B_REF_DIRECT = 0.6693   # <Bz>(r=3.3 m)，tests/cycl_track 直接在场图上求值
 
 
 def sample_nearest(grid, x0, y0, h, xs, ys):
@@ -110,6 +114,16 @@ def main(argv=None):
     a.plot(rr, bavg, lw=1.8, label=r"$\langle B_z\rangle$ (azimuthal mean)")
     a.plot(rr, bmax, lw=1.2, ls="--", color="#d62728",
            label="peak |B| (pole)")
+    # 直接在场图上求值（tests/cycl_track 的解析判据）作为参照：
+    # 本曲线取自 0.1 m 导出网格的最近邻采样，会把近乎为零的谷区抹平，
+    # 因此平均值偏高（~0.78 vs 0.67 T）。
+    a.plot([r_ref], [B_REF_DIRECT], marker="*", ms=14, color="#ff9800",
+           zorder=6, label=f"direct evaluation: {B_REF_DIRECT} T")
+    a.annotate("curve uses nearest-neighbour sampling on the\n"
+               "0.1 m export grid, which smears the\n"
+               "near-zero valleys -> biased high",
+               xy=(0.55, 0.20), xycoords="axes fraction", fontsize=8,
+               bbox=dict(boxstyle="round", fc="white", ec="0.6", alpha=0.85))
     a.axhline(bavg[np.argmin(np.abs(rr - r_ref))], color="0.4", lw=0.8, ls=":")
     a.text(2.05, bavg[np.argmin(np.abs(rr - r_ref))]*0.32,
            "pole fill factor = $\\langle B_z\\rangle/B_{pole}$ ≈ 0.43\n"
