@@ -33,6 +33,9 @@ jobs:
       - name: Run tests
         run: make check
 
+      - name: Acceptance gate (R1/R2/R3 requirements)
+        run: ./tests/cycl_acceptance
+
       - name: Validate VTK export (independent python cross-check)
         run: python3 python/tests/test_vtk_io.py
 
@@ -64,6 +67,9 @@ jobs:
 
       - name: Run tests
         run: make check
+
+      - name: Acceptance gate (R1/R2/R3 requirements)
+        run: ./tests/cycl_acceptance
 
       - name: Validate VTK export (independent python cross-check)
         run: python3 python/tests/test_vtk_io.py

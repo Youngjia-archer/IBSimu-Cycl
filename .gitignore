@@ -61,6 +61,11 @@ src/cyclotron/.deps
 /cycl_accel_real.csv
 /cycl_relativistic.csv
 
+# acceptance test outputs (written into CWD when running ./tests/cycl_acceptance)
+/cycl_acceptance_field.vti
+/cycl_acceptance_io.h5
+/cycl_acceptance_orbit.vtp
+
 # autotools / build outputs
 compile
 test-driver

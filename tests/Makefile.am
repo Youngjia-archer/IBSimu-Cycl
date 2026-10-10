@@ -25,6 +25,7 @@ cycl_track_SOURCES = cycl_track.cpp
 cycl_closed_orbit_SOURCES = cycl_closed_orbit.cpp
 cycl_rfgap_SOURCES = cycl_rfgap.cpp
 cycl_accel_SOURCES = cycl_accel.cpp
+cycl_acceptance_SOURCES = cycl_acceptance.cpp
 cycl_relativistic_SOURCES = cycl_relativistic.cpp
 cycl_omp_tracker_SOURCES = cycl_omp_tracker.cpp
 cycl_fieldbench_SOURCES = cycl_fieldbench.cpp
@@ -63,6 +64,7 @@ cycl_track \
 cycl_closed_orbit \
 cycl_rfgap \
 cycl_accel \
+cycl_acceptance \
 cycl_relativistic \
 cycl_omp_tracker \
 cycl_fieldbench \
@@ -92,5 +94,5 @@ endif
 EXTRA_DIST = \
 solver2d_coax.gpl
 
-CLEANFILES = *~ *.png *.eps *.svg *.pdf *.ps *.dat *_vout.txt plasmacyl_emit1.txt beam3d.path libibsimutest.la *.vti *.vtp
+CLEANFILES = *~ *.png *.eps *.svg *.pdf *.ps *.dat *_vout.txt plasmacyl_emit1.txt beam3d.path libibsimutest.la *.vti *.vtp *.h5
 
