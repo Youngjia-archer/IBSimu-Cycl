@@ -1662,8 +1662,16 @@ double EpotMGSubSolver::rbgs_loop_3d( void ) const
     const uint32_t dk = _geom.size(0)*_geom.size(1);
 
     // Go through all nodes once using Red-Black ordering
+    //
+    // IBSimu-Cycl: 红黑次序天然适合并行——同一颜色内，7 点模板只读**相反**
+    // 颜色（本轮不写），因此同色遍历可整体并行，且每个节点算出的新值与
+    // 串行**逐位相同**（只有残差 res 的求和次序会变）。
     double res = 0.0;
+    int    err_seen = 0;
     for( uint32_t rb = 0; rb < 2; rb++ ) {
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static) reduction(+:res) reduction(||:err_seen) if(_geom.size(2) >= 8)
+#endif
 	for( uint32_t k = 0; k < _geom.size(2); k++ ) {
 	    for( uint32_t j = 0; j < _geom.size(1); j++ ) {
 	    
@@ -1697,16 +1705,26 @@ double EpotMGSubSolver::rbgs_loop_3d( void ) const
 		    (*_epot)(a) = Vnew;
 		    double dx = Vnew - Vold;
 		    res += dx*dx;
-		    if( comp_isinf(dx) ) {
-			throw( Error( ERROR_LOCATION, "Potential inf at location = (" + to_string(i) + 
-				      ", " + to_string(j) + ", " + to_string(k) + ")" ) );
-		    } else if( comp_isnan(dx) ) {
-			throw( Error( ERROR_LOCATION, "Potential NaN at location = (" + to_string(i) + 
-				      ", " + to_string(j) + ", " + to_string(k) + ")" ) );
-		    }
+		    if( comp_isinf(dx) || comp_isnan(dx) )
+			err_seen = 1;   // 并行区内不能抛异常，循环结束后统一处理
 		}
 	    }
 	}
+    }
+
+    if( err_seen ) {
+	// 出错时才做一次串行扫描定位（正常路径零额外开销）
+	for( uint32_t k = 0; k < _geom.size(2); k++ )
+	    for( uint32_t j = 0; j < _geom.size(1); j++ )
+		for( uint32_t i = 0; i < _geom.size(0); i++ ) {
+		    double v = (*_epot)(k*dk + j*dj + i);
+		    if( comp_isinf(v) || comp_isnan(v) )
+			throw( Error( ERROR_LOCATION, "Potential "
+				      + std::string(comp_isinf(v) ? "inf" : "NaN")
+				      + " at location = (" + to_string(i) + ", "
+				      + to_string(j) + ", " + to_string(k) + ")" ) );
+		}
+	throw( Error( ERROR_LOCATION, "Potential inf/NaN in 3D relaxation" ) );
     }
 
     return( 6.0*sqrt(res) );
@@ -1973,8 +1991,12 @@ double EpotMGSubSolver::defect_neumann_3d( uint32_t a, uint32_t dj,
 void EpotMGSubSolver::defect_3d( bool after_smooth ) const
 {
     // Go through all nodes
+    // IBSimu-Cycl: 每个节点只写 _defect(a) 一次、只读 _epot/_rhs，无依赖，直接按 k 并行
     const uint32_t dj = _geom.size(0);
     const uint32_t dk = _geom.size(0)*_geom.size(1);
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static) if(_geom.size(2) >= 8)
+#endif
     for( uint32_t k = 0; k < _geom.size(2); k++ ) {
 	for( uint32_t j = 0; j < _geom.size(1); j++ ) {
 	    for( uint32_t i = 0; i < _geom.size(0); i++ ) {

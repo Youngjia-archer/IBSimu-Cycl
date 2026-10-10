@@ -464,9 +464,13 @@ void EpotMGSolver::postprocess( void )
 void EpotMGSolver::restrict_3d( MeshScalarField *out, const MeshScalarField *in, bool defect )
 {
     // Go through internal nodes of rougher level (out)
+    // IBSimu-Cycl: 每个粗节点只写 (*out)(i,j,k) 一次、只读细层 in，无依赖，可按 k 并行
     int32_t s = out->size(0)-1;
     int32_t t = out->size(1)-1;
     int32_t u = out->size(2)-1;
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static) if(u >= 8)
+#endif
     for( int32_t k = 1; k < u; k++ ) {
 	for( int32_t j = 1; j < t; j++ ) {
 	    for( int32_t i = 1; i < s; i++ ) {
@@ -1221,6 +1225,10 @@ void EpotMGSolver::prolong_3d( MeshScalarField *out, const MeshScalarField *in )
     out->clear();
 
     // Loop through all input nodes
+    //
+    // IBSimu-Cycl 注：13 项写入全部落在**偶数**细节点上（偏移量中恰有 2 个为奇数），
+    // 即这是一次完整的三线性插值。相邻粗节点会向同一偶数点贡献，属于“有冲突的
+    // 散射加”，不能直接按 k 并行（曾试过只写中心点，结果破坏了求解器，已回退）。
     int32_t s = in->size(0);
     int32_t t = in->size(1);
     int32_t u = in->size(2);
@@ -1392,9 +1400,13 @@ void EpotMGSolver::correct( const Geometry *geom, MeshScalarField *sol, const Me
 {
     // Loop through all nodes, only correct non-fixed even points.
     // Odd field will be overwritten by first RBGS loop.
+    // IBSimu-Cycl: 每个偶数点只写一次、只读 corr，可按 k 并行
     int32_t s = geom->size(0);
     int32_t t = geom->size(1);
     int32_t u = geom->size(2);
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static) if(u >= 8)
+#endif
     for( int32_t k = 0; k < u; k++ ) {
 	for( int32_t j = 0; j < t; j++ ) {
 	    for( int32_t i = (k+j) % 2; i < s; i+=2 ) {
