@@ -170,8 +170,11 @@ static Dataset read_double_dataset( hid_t file, const std::string &path )
 		 H5P_DEFAULT, &ds.data[0] ) < 0 )
         throw( std::runtime_error( "cannot read dataset " + path ) );
 
-    Id a( H5Aopen( d.id(), "unitSI", H5P_DEFAULT ), H5Aclose );
-    if( a.ok() ) {
+    // unitSI 是可选属性：先用 H5Aexists 探测再打开。
+    // 直接 H5Aopen 一个不存在的属性会让 HDF5 把整条错误堆栈打到 stderr，
+    // 测试输出里会出现大量 HDF5-DIAG 噪声（而这不是失败）。
+    if( H5Aexists( d.id(), "unitSI" ) > 0 ) {
+        Id a( H5Aopen( d.id(), "unitSI", H5P_DEFAULT ), H5Aclose );
         double u = 0.0;
         H5Aread( a.id(), H5T_NATIVE_DOUBLE, &u );
         ds.has_unit_si = true;
