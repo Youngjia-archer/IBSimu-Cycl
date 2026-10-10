@@ -76,3 +76,6 @@ tests/*.dat
 
 
 
+/solver*_co*.dat
+/solver3d_*.dat
+/*.dat
