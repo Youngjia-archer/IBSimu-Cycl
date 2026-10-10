@@ -27,7 +27,7 @@ P2/P3/P4 阶段再导入实际输入文件与场图。
 | --- | --- | --- |
 | `plot_trajectory.py` | `tests/cycl_track.csv` | `cyclotron_orbit.png`（xy 轨道/\|B\|/速率/相位 2×2） |
 | `plot_acceleration.py` | `tests/cycl_accel.csv` | `cyclotron_acceleration.png` |
-| `plot_relativistic_orbit.py` | `tests/cycl_relativistic.csv` | `cyclotron_real_orbit.png`（相对论、真实场强） |
+| `plot_relativistic_orbit.py` | `tests/cycl_relativistic.csv` + `tests/cycl_closed_orbit.vtp` | `cyclotron_real_orbit.png`（**未匹配初值 vs 闭合轨道**对比） |
 | **`plot_field_map.py`** | `tests/cycl_track_map.vti` + `cycl_track.vtp` | **`docs/img/cyclotron_field_map.png`（整机中场图 + 五圈轨道）** |
 | `view_3d.py` | 任意 `.vti` / `.vtp` | 三维交互视图或 PNG（需 `pyvista`） |
 
@@ -35,7 +35,11 @@ P2/P3/P4 阶段再导入实际输入文件与场图。
 
 ```bash
 make -C tests cycl_track && ./tests/cycl_track        # 生成 CSV / VTK XML
+make -C tests cycl_closed_orbit && ./tests/cycl_closed_orbit   # 闭合轨道 .vtp
 python3 examples/cyclotron/plot_field_map.py          # 整机中场图 + 轨道图
+python3 examples/cyclotron/plot_relativistic_orbit.py \
+    --naive tests/cycl_relativistic.csv --closed tests/cycl_closed_orbit.vtp \
+    -o docs/img/cyclotron_real_orbit.png              # 闭合轨道对比图
 python3 examples/cyclotron/view_3d.py tests/cycl_track_field.vti tests/cycl_track.vtp
 ```
 

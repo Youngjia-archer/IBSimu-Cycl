@@ -63,7 +63,23 @@ def main(argv=None):
     ax[0, 0].set_aspect("equal")
     ax[0, 0].set_xlabel("x [m]")
     ax[0, 0].set_ylabel("y [m]")
-    ax[0, 0].set_title("Midplane orbit (color = |B|)")
+    ax[0, 0].set_title("Larmor gyration — NOT a cyclotron orbit (color = |B|)")
+    # 说清楚这是“局部探针”，不是绕机器中心的轨道
+    r_larmor = float(np.mean(speed))/omega
+    ax[0, 0].annotate(
+        "$r_L = v/\\omega_c = %.1f$ mm (diameter %.0f mm)\n"
+        "0.1c proton in B = %.2f T.\n"
+        "Deliberately local: the field is nearly\n"
+        "uniform here, which is what lets the phase\n"
+        "slope measure $\\omega_c=qB/m$ cleanly.\n"
+        "(It still varies ~±25%% over this 0.4 m\n"
+        "orbit, so the turns drift a little.)\n"
+        "A real cyclotron orbit (r ≈ 3.3 m) needs\n"
+        "a closed-orbit solve, not a tangential\n"
+        "launch — see tests/cycl_closed_orbit."
+        % (r_larmor*1e3, 2.0*r_larmor*1e3, float(np.mean(c["Bmag"]))),
+        xy=(0.02, 0.02), xycoords="axes fraction", fontsize=7.5, va="bottom",
+        bbox=dict(boxstyle="round", fc="white", ec="0.6", alpha=0.85))
     fig.colorbar(s0, ax=ax[0, 0], label="|B| [T]")
 
     ax[0, 1].plot(r, c["Bmag"], lw=1.5)
@@ -87,7 +103,8 @@ def main(argv=None):
     ax[1, 1].legend(fontsize=9)
     ax[1, 1].grid(True, alpha=0.3)
 
-    fig.suptitle("IBSimu-Cycl: proton gyrating in the PSI Ring field map", fontsize=13)
+    fig.suptitle("IBSimu-Cycl: Larmor gyration of a 0.1c proton — local probe "
+                 "for $\\omega_c=qB/m$ (r = 3.3 m, real PSI Ring map)", fontsize=12)
     fig.tight_layout(rect=[0, 0, 1, 0.97])
     fig.savefig(args.output, dpi=130)
 

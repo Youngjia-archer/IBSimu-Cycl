@@ -16,6 +16,7 @@
 #include <cmath>
 #include <cstdio>
 #include <fstream>
+#include <iomanip>
 #include <memory>
 #include <string>
 #include <vector>
@@ -165,6 +166,9 @@ int main( int argc, char **argv )
     // --- CSV ---
     {
         std::ofstream f( (prefix + ".csv").c_str() );
+        // 全精度写出：默认的 6 位有效数字会把速度量化到 ~1e-6，
+        // 在“速率守恒”图上表现为假的 ppm 级漂移（实际是机器精度 1e-15）。
+        f << std::setprecision( 17 );
         f << "# IBSimu-Cycl proton trajectory (PSI Ring field map)\n";
         f << "t,x,y,z,vx,vy,vz,Bmag\n";
         for( std::size_t i = 0; i < traj.size(); ++i ) {
