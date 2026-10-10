@@ -12,6 +12,7 @@
  *  IBSimu-Cycl is a derivative work of IBSimu, licensed under GPL-3.0-or-later.
  */
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <fstream>
@@ -20,6 +21,7 @@
 #include <vector>
 
 #include "ringfield3d.hpp"
+#include "vtkwriter.hpp"
 
 using namespace ibsimu_cycl;
 
@@ -196,6 +198,55 @@ int main( int argc, char **argv )
 
     std::printf( "trajectory: %zu points -> %s.csv, %s.vtk\n",
                  traj.size(), prefix.c_str(), prefix.c_str() );
+
+    // --- VTK XML（标准格式）：轨迹 .vtp（带时刻，可按时间着色）+ 三维磁场 .vti ---
+    {
+        std::vector<std::vector<TrajectoryPoint>> lines( 1 );
+        lines[0].reserve( traj.size() );
+        for( std::size_t i = 0; i < traj.size(); ++i ) {
+            TrajectoryPoint p;
+            p.t = (double)i*dt2;
+            p.x = traj[i].x;
+            lines[0].push_back( p );
+        }
+        vtk_write_polylines( prefix + ".vtp", lines );
+
+        // 取轨迹包围盒并留 20% 余量，保证场图完整覆盖轨道
+        double xmin = 1e30, xmax = -1e30, ymin = 1e30, ymax = -1e30;
+        for( const auto &p : traj ) {
+            xmin = std::min( xmin, p.x[0] );  xmax = std::max( xmax, p.x[0] );
+            ymin = std::min( ymin, p.x[1] );  ymax = std::max( ymax, p.x[1] );
+        }
+        const double cx   = 0.5*(xmin + xmax);
+        const double cy   = 0.5*(ymin + ymax);
+        const double half = 1.2*0.5*std::max( xmax - xmin, ymax - ymin );
+
+        const int    NFX = 41, NFY = 41, NFZ = 5;
+        const double FH  = 2.0*half/(double)(NFX-1);
+        const double FX0 = cx - half, FY0 = cy - half, FZ0 = -0.02;
+
+        std::vector<double> bmag( (std::size_t)NFX*NFY*NFZ );
+        std::vector<double> bvec( 3*(std::size_t)NFX*NFY*NFZ );
+        for( int k = 0; k < NFZ; ++k )
+            for( int j = 0; j < NFY; ++j )
+                for( int i = 0; i < NFX; ++i ) {
+                    Vec3D bb = B( Vec3D( FX0 + FH*i, FY0 + FH*j, FZ0 + FH*k ) );
+                    std::size_t a = (std::size_t)i
+                        + (std::size_t)NFX*((std::size_t)j + (std::size_t)NFY*k);
+                    bmag[a] = vabs( bb );
+                    bvec[3*a+0] = bb[0];
+                    bvec[3*a+1] = bb[1];
+                    bvec[3*a+2] = bb[2];
+                }
+        vtk_write_image_data( prefix + "_field.vti",
+                              Int3D( NFX, NFY, NFZ ),
+                              Vec3D( FX0, FY0, FZ0 ), Vec3D( FH, FH, FH ),
+                              "Bmag", bmag, "B", bvec );
+
+        std::printf( "VTK XML: %s.vtp (带 t 标量), %s_field.vti (%dx%dx%d 三维 B)\n",
+                     prefix.c_str(), prefix.c_str(), NFX, NFY, NFZ );
+    }
+
     check( traj.size() == (std::size_t)n2 + 1, "trajectory written" );
 
     std::printf( "\n%s (%d failure%s)\n",

@@ -833,3 +833,6 @@ $O(\omega\Delta t)$ 初始瞬态（磁场的**相位**推进仍然正确，只�
 
 - [x] `make check` = **34/34**
 - [x] CI 增加独立 Python 交叉验证步骤
+- [x] 接入真实算例：`tests/cycl_track.cpp` 额外导出 `cycl_track.vtp`（带时刻）与
+  `cycl_track_field.vti`（41×41×5 真实三维 B，|B| 0.09–1.76 T）
+- [ ] R3-③：HDF5/openPMD 二进制后端（大网格/大粒子数）；`.pvti` + 二进制追加段

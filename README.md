@@ -310,6 +310,13 @@ python3 examples/cyclotron/view_3d.py field.vti orbit.vtp       # 交互（需 p
 python3 examples/cyclotron/view_3d.py --save out.png orbit.vtp  # 批量出图
 ```
 
+真实算例（PSI Ring 磁场图 + 五圈轨道）也会一并导出，可直接查看：
+
+```bash
+make -C tests cycl_track && ./tests/cycl_track
+paraview tests/cycl_track_field.vti tests/cycl_track.vtp
+```
+
 Python 侧另有一套**独立实现**的读取器 `python/ibsimu_cycl/vtk_io.py`：不装 VTK
 也能做后处理，同时充当导出器的交叉验证。
 

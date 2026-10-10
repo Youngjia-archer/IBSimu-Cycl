@@ -308,8 +308,11 @@ $O(\omega\Delta t)$ 初始瞬态（磁场**相位**推进仍正确，只有半�
 
 - [x] `make check` = **34/34**（新增 `cycl_vtk_export`）。
 - [x] CI 两个构建作业增加独立 Python 交叉验证步骤。
+- [x] **接入真实算例**：`tests/cycl_track.cpp`（真实 PSI Ring 磁场图）现额外导出
+  `cycl_track.vtp`（2001 点，带 `t` 标量可按时间着色）与
+  `cycl_track_field.vti`（41×41×5 三维 B，|B| 0.09–1.76 T，反映 8 折扇形结构）。
+  原 legacy `.vtk` 保留（但**不含时间标量**，是本次补充的动机之一）。
 - [ ] R3-③：HDF5/openPMD 二进制后端（大网格/大粒子数）；`.pvti` + 二进制追加段。
-- [ ] R3-③：把导出接到现有算例脚本（PSI Ring 真实场图 + 多圈轨道）。
 
 ---
 
