@@ -77,7 +77,7 @@
 
 | 文件 | 职责 |
 | --- | --- |
-| `particles/particlestepper` | 粒子数据结构与步进 |
+| `particles/particlestepper` | 粒子数据结构与**固定步长 Boris 步进**（`ParticleStepper`，仅 MODE_3D） |
 | `particleiterator` | **GSL 自适应 ODE 积分**的轨迹追踪；`_scharge_mutex` 形参用于多线程沉积 |
 | `particledatabase` / `particledatabaseimp` | 3D/2D/Cyl 数据库；**多线程追踪的实际实现**（`Scheduler` + 每线程一个 `ParticleIterator`） |
 | `scheduler` | 线程池：`run(iterators)`、`get_next_problem()`、`wait_finish()`、错误收集 |
@@ -98,6 +98,34 @@ for( size_t i = 0; i < N; i++ ) {
     // convergence.evaluate_iteration(); → 判断是否退出
 }
 ```
+
+#### 2.4.1 两条粒子推进路径（步长选择）
+
+`ParticleDataBase` **同时提供两条推进路径**。它们不是互斥的替代实现，而是面向不同用法的两个入口：
+
+| 入口 | 步长 | 终止条件 | 实现 |
+| --- | --- | --- | --- |
+| `iterate_trajectories( scharge, efield, bfield )` | **GSL 自适应**（`epsabs`/`epsrel`） | 边界 / 表面 / `max_time` / `max_steps` | `ParticleIterator<PP>`（`particleiterator.hpp`），每线程一个实例 |
+| `step_particles( scharge, efield, bfield, dt )` | **用户给定固定 `dt`**（Boris） | 无——调用一次推进一个 `dt` | `ParticleStepper<PP>`（`particlestepper.hpp`） |
+
+要点：
+
+- `step_particles()` 每次调用**内部先 `scharge.clear()`**，因此它只沉积「这一步」的电荷；
+  调用者应对每个时间步调用一次。这与需要固定时间栅格（RF 同步）的加速器仿真天然契合。
+- `step_particles()` 只实现 **`MODE_3D`**；2D/CYL 会抛 `ErrorUnimplemented`。
+- 首次调用时用 `ParticleStepper::initialize()` 对速度做半步反踢（leapfrog 启动），
+  因此第一次 `step_particles()` 之后粒子恰好前进一个 `dt`，且 `t` 严格按 `dt` 累加。
+- 粒子状态数组布局为 `[t, x, vx, y, vy, z, vz]`（注意 x/y/z 与速度分量**交错**）。
+
+**相对论语义**：`set_relativistic(true)` 在两个入口下语义一致，都得到正确的
+相对论回旋频率 $\omega_c = qB/(\gamma m)$：
+
+- 自适应路径：`ParticleP3D::get_derivatives()` 使用**质量矩阵**形式（`src/particles.cpp`）。
+- 固定步长路径：`ParticleStepper` 在 $u=\gamma v$ 空间做 Boris 旋转，旋转向量
+  $t = \dfrac{qB}{2\gamma m}\Delta t$ **必须含 $1/\gamma$**。漏掉它会得到 $\omega=qB/m$，
+  即偏大 $\gamma$ 倍（$\gamma=1.22$ 时约 22%；两圈后相位偏差 158°，位置完全错）。
+
+两条路径的一致性由 `tests/cycl_stepper_modes.cpp` 在均匀 Bz 场中对解析解验证。
 
 ### 2.5 IO 与可视化
 

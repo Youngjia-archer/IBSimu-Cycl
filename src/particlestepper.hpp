@@ -51,6 +51,7 @@
 #include "meshscalarfield.hpp"
 #include "scharge.hpp"
 #include "particledatabase.hpp"
+#include "constants.hpp"
 
 
 template<class PP> class ParticleStepper {
@@ -64,15 +65,38 @@ template<class PP> class ParticleStepper {
     const VectorField         *_efield;
     const VectorField         *_bfield;
     const Geometry            *_geom;
+    bool                       _relativistic;  /*!< \brief Relativistic push (u = gamma*v space)? */
+
+
+    /*! \brief 速度 -> u = gamma*v（非相对论时恒等变换）。
+     */
+    Vec3D v_to_u( const Vec3D &v ) const {
+	if( !_relativistic )
+	    return( v );
+	double g = 1.0/sqrt( 1.0 - v.ssqr()/SPEED_C2 );
+	return( g*v );
+    }
+
+
+    /*! \brief u = gamma*v -> 速度（非相对论时恒等变换）。
+     */
+    Vec3D u_to_v( const Vec3D &u ) const {
+	if( !_relativistic )
+	    return( u );
+	double g = sqrt( 1.0 + u.ssqr()/SPEED_C2 );
+	return( (1.0/g)*u );
+    }
+
 
 public:
 
 
     ParticleStepper( double dt, uint32_t trajdiv, bool mirror[6], 
 		     MeshScalarField *scharge, const VectorField *efield, 
-		     const VectorField *bfield, const Geometry *geom )
+		     const VectorField *bfield, const Geometry *geom,
+		     bool relativistic = false )
 	: _dt(dt), _surface_collision(false), _trajdiv(trajdiv), _scharge(scharge), 
-	  _efield(efield), _bfield(bfield), _geom(geom) {
+	  _efield(efield), _bfield(bfield), _geom(geom), _relativistic(relativistic) {
 	// Initialize mirroring
 	_mirror[0] = mirror[0];
 	_mirror[1] = mirror[1];
@@ -88,6 +112,26 @@ public:
     }
 
 
+    /*! \brief Enable or disable relativistic push.
+     *
+     *  When enabled the Boris rotation is carried out in the u = gamma*v
+     *  space, which is the standard relativistic Boris pusher: in a static
+     *  magnetic field |u| and gamma are exactly conserved and the correct
+     *  relativistic cyclotron frequency qB/(gamma*m) is reproduced. This is
+     *  needed for cyclotron simulations (e.g. gamma = 1.22). When disabled
+     *  (default) the original non-relativistic IBSimu push is reproduced
+     *  bit for bit.
+     */
+    void set_relativistic( bool enable ) {
+	_relativistic = enable;
+    }
+
+
+    bool get_relativistic( void ) const {
+	return( _relativistic );
+    }
+
+
     /*! \brief Initialize particle stepping velocity backwards by 0.5*dt
      */
     void initialize( Particle<PP> *particle, uint32_t pi ) {
@@ -100,7 +144,12 @@ public:
 	    if( _bfield )
 		B = (*_bfield)( x );
 	    Vec3D a = particle->qm()*(E+cross(v,B));
-	    v = v - 0.5*a*_dt;
+	    if( !_relativistic ) {
+		v = v - 0.5*a*_dt;
+	    } else {
+		// 相对论：在 u = gamma*v 空间做半步反踢，du/dt = (q/m)(E + v x B)
+		v = u_to_v( v_to_u(v) - 0.5*a*_dt );
+	    }
 	    (*particle)[2] = v[0];
 	    (*particle)[4] = v[1];
 	    (*particle)[6] = v[2];
@@ -127,12 +176,29 @@ public:
 		E = (*_efield)( x );
 	    if( _bfield )
 		B = (*_bfield)( x );
-	    Vec3D vminus = particle->x().velocity() + 0.5*particle->qm()*E*_dt;
-	    Vec3D t = 0.5*particle->qm()*B*_dt;
-	    Vec3D vprime = vminus + cross(vminus,t);
-	    Vec3D s = 2.0/(1+t.ssqr())*t;
-	    Vec3D vplus = vminus + cross(vprime,s);
-	    Vec3D v = vplus + 0.5*particle->qm()*E*_dt;
+	    Vec3D v;
+	    if( !_relativistic ) {
+		// ---- 非相对论 Boris（与原实现逐位一致）----
+		Vec3D vminus = particle->x().velocity() + 0.5*particle->qm()*E*_dt;
+		Vec3D t = 0.5*particle->qm()*B*_dt;
+		Vec3D vprime = vminus + cross(vminus,t);
+		Vec3D s = 2.0/(1+t.ssqr())*t;
+		Vec3D vplus = vminus + cross(vprime,s);
+		v = vplus + 0.5*particle->qm()*E*_dt;
+	    } else {
+		// ---- 相对论 Boris（u = gamma*v 空间）----
+		// 旋转向量必须含 1/gamma：du/dt = (q/(gamma m)) u x B，
+		// 否则回旋频率会偏大 gamma 倍（gamma=1.22 时约 22%）。
+		Vec3D u = v_to_u( particle->x().velocity() );
+		u = u + 0.5*particle->qm()*E*_dt;
+		double ghalf = sqrt( 1.0 + u.ssqr()/SPEED_C2 );
+		Vec3D t = particle->qm()*B*(_dt/(2.0*ghalf));
+		Vec3D uprime = u + cross(u,t);
+		Vec3D s = t*(2.0/(1.0+t.ssqr()));
+		u = u + cross(uprime,s);
+		u = u + 0.5*particle->qm()*E*_dt;
+		v = u_to_v( u );
+	    }
 	    x += v*_dt;
 
 	    for( int a = 0; a < 3; a++ ) {

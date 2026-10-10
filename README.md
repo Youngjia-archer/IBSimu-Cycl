@@ -148,6 +148,40 @@ python3 examples/cyclotron/plot_trajectory.py cycl_track.csv -o docs/img/cyclotr
 
 > 这解除了 P4 的限制：**真实场强下的 PSI Ring 现在可以直接跟踪**，无需整体缩放。
 
+## 步长选择：两条推进路径（R1-④）
+
+`ParticleDataBase` **同时提供两条推进路径**，可按场景选择：
+
+| 入口 | 步长 | 适用场景 |
+| --- | --- | --- |
+| `iterate_trajectories( scharge, efield, bfield )` | GSL **自适应**（`epsabs`/`epsrel`） | 一次性把轨道追到底；非 3D 网格（2D/CYL） |
+| `step_particles( scharge, efield, bfield, dt )` | **Boris 固定 `dt`** | 固定时间栅格 / 与 RF 周期同步；时刻可控 |
+
+两者都受 `set_relativistic(true)` 控制。`tests/cycl_stepper_modes.cpp` 以均匀 Bz 场中的
+单粒子回旋运动（解析解）对两条路径做交叉验证（各 2 圈，固定步长取 `dt = T/1000`）：
+
+| 路径 | 束流 | 轨道误差 | 速率漂移 | $\gamma$ |
+| --- | --- | --- | --- | --- |
+| 自适应 | 非相对论 | `4.4e-5` | `4.4e-5` | 1.000000 |
+| 固定步长 | 非相对论 | `4.1e-5` | `4.9e-6` | 1.000000 |
+| 自适应 | $\gamma=1.22$ | `6.4e-5` | `2.0e-5` | 1.220012 |
+| 固定步长 | $\gamma=1.22$ | `6.2e-5` | `3.3e-6` | 1.220002 |
+
+固定步长用法（`step_particles()` 每次调用推进一个 `dt`，并只沉积该步的电荷）：
+
+```cpp
+for( uint32_t n = 0; n < nsteps; n++ )
+    pdb.step_particles( scharge, efield, bfield, dt );
+```
+
+> 上游的固定步长路径（`ParticleStepper`）**原本没有相对论分支**：
+> `set_relativistic(true)` 对它无效，回旋频率会偏大 $\gamma$ 倍
+> （$\gamma=1.22$ 时两圈后位置完全错位）。本项目已补齐 $u=\gamma v$ 空间的旋转
+> （旋转向量含 $1/\gamma$ 因子），非相对论分支保持与原实现逐位一致。
+>
+> 已知限制：`step_particles()` 仅支持 3D 网格（2D/CYL 抛 `ErrorUnimplemented`），
+> 且 `bfield` 目前为静态场。
+
 ## 并行化：OpenMP 粒子级并行（G1 / R1-①）
 
 回旋加速器三维跟踪的天然并行维是**粒子维**（粒子间无相互作用，场为只读）。

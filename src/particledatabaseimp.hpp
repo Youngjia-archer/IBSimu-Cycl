@@ -775,7 +775,7 @@ public:
 	
 	// Go through particles
 	ParticleStepper<PP> ps( dt, _trajdiv, _mirror, &scharge, 
-			    &efield, &bfield, &_geom );
+			    &efield, &bfield, &_geom, _relativistic );
 	for( uint32_t a = 0; a < _particles.size(); a++ ) {
 	    if( (*_particles[a])[0] == 0 )
 		ps.initialize( _particles[a], a );

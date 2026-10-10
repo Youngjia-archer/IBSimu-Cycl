@@ -122,6 +122,14 @@ automake 接受 `.cu` + 自定义规则，但 libtool 会：
   但会牺牲与串行的逐位一致性。
 - **OpenMP 并行区内不能抛异常**（会 `std::terminate`）→ 改为标志位 + 循环后串行定位。
 - **CYL 模式下 `j` 是径向**；轴上（`EPOT_BYMIN`）模板是特例（只读 `(i,j+1)`）。
+- **`MeshVectorField( geom, fout, ... )` 里 `fout[i]=true` 表示该分量「存在」**，
+  `false` 表示恒为零。写 `{false,false,false}` 得到的是**零场**（曾因此让粒子走直线，
+  两条推进路径一起“错”，差点误判为步进器 bug）。
+- **`Vec3D::norm2()` 返回的是 2-范数本身，不是范数的平方**（平方和另有 `ssqr()`）。
+  把 `norm2()/SPEED_C2` 当 $\beta^2$ 用会让 $\gamma$ 恒等于 1，
+  从而**掩盖真实误差**（相对论算例里表现为“误差存在但 γ 正常”的矛盾现象）。
+- **相对论 Boris 的旋转向量必须含 $1/\gamma$**：$t=qB\Delta t/(2\gamma m)$，
+  不是教科书记忆里的 $qB\Delta t/(2m)$。
 
 ### 4.3 检索与工具
 - **检索并行/线程相关代码必须包含 `*.hpp`**：IBSimu 把大量实现放在头文件里，
@@ -157,7 +165,7 @@ src/cyclotron/          本项目新增（命名空间 ibsimu_cycl）
   cuda/                 CGpuEnsembleTracker（NVRTC + Driver API）
 adapters/               外部求解器适配器（Elmer / Palace），松耦合文件交换
 examples/cyclotron/     真实算例数据与绘图脚本
-tests/cycl_*.cpp        本项目新增的测试与基准（共 12 个）
+tests/cycl_*.cpp        本项目新增的测试与基准（共 13 个）
 docs/                   ROADMAP / DEVELOPMENT / UPSTREAM_ARCHITECTURE / WORK_LOG
 ```
 
@@ -180,7 +188,71 @@ docs/                   ROADMAP / DEVELOPMENT / UPSTREAM_ARCHITECTURE / WORK_LOG
 
 ---
 
-## 6. 建议的下一步（按性价比）
+## 6. 步长选择：两条推进路径的实现与验证
+
+**背景**：回旋加速器需要「与 RF 周期同步的等时间步」，而 IBSimu 默认的
+`iterate_trajectories()` 是 GSL 自适应步长。目标是把步长选择做成可选参数，
+**且两种方案都真正可用**（而不是只留个接口）。
+
+### 6.1 查证：接口已经存在
+
+上游**已经**在 `ParticleDataBase` 上提供两条路径，
+所以“步长选择”在 API 层面已是可选参数。缺的不是接口，而是 **(a) 验证、(b) 相对论支持、(c) 文档**：
+
+| 入口 | 步长 | 用法 |
+| --- | --- | --- |
+| `iterate_trajectories(scharge, efield, bfield)` | GSL 自适应 | 一次把轨道追到底 |
+| `step_particles(scharge, efield, bfield, dt)` | Boris 固定 `dt` | 自己控制时间栅格，每次一个 `dt` |
+
+**验证状态**：改动前仓库里 **18 处调用全部是 `iterate_trajectories`**，
+`step_particles` **零测试、零文档**。
+
+### 6.2 新增验证（`tests/cycl_stepper_modes.cpp`）
+
+以均匀 Bz 场中的单粒子回旋运动（有解析解）为基准，两条路径 × 两种束流条件各追踪 2 圈：
+
+| 路径 | 束流 | 轨道误差 | 速率漂移 | $\gamma$ 守恒 |
+| --- | --- | --- | --- | --- |
+| 自适应 | 非相对论 | 4.4e-5 | 4.4e-5 | 1.000000 |
+| 固定步长 | 非相对论 | 4.1e-5 | 4.9e-6 | 1.000000 |
+| 自适应 | 相对论 $\gamma$=1.22 | 6.4e-5 | 2.0e-5 | 1.220012 |
+| 固定步长 | 相对论 $\gamma$=1.22 | 6.2e-5 | 3.3e-6 | 1.220002 |
+
+（固定步长取 `dt = T/1000`，每圈 1000 步。）
+
+### 6.3 修复的实质缺陷
+
+`ParticleStepper`（固定步长）原先**完全没有相对论分支**：
+`set_relativistic(true)` 对它无效，回旋频率会偏大 $\gamma$ 倍。已补齐：
+
+- `src/particlestepper.hpp`：新增 `_relativistic` 成员、`set_relativistic()`、
+  `v_to_u()`/`u_to_v()` 以及 $u=\gamma v$ 空间的 Boris 旋转；
+- `src/particledatabaseimp.hpp`：`step_particles()` 构造 `ParticleStepper` 时传入 `_relativistic`；
+- **非相对论分支保持与原实现逐位一致**（显式分叉，不共用表达式）。
+
+### 6.4 一个“想当然”错误的代价
+
+我最初按记忆把相对论旋转向量写成 $t = qB\Delta t/(2m)$（无 $\gamma$），
+实测轨道误差 **1.61**（位置完全错位）。正确形式是 $t=qB\Delta t/(2\gamma m)$。
+
+关键的修复线索是：本项目 `CBorisPusher`（已独立验证过 $\omega_c=qB/(\gamma m)$）
+的实现里明确写了 `ghalf` 除法。**两个独立实现互相印证**比重新推导更快也更可靠——
+以后遇到此类问题，优先去查仓库里已有的、被验证过的同类实现。
+
+### 6.5 结论
+
+- 两条路径均可用，误差量级相同（~5e-5，受各自设置支配）。
+- **选择建议**：需要固定时间栅格 / 与 RF 同步 → `step_particles(dt)`；
+  需要自适应精度、非 3D 网格、或一次性追到底 → `iterate_trajectories()`。
+- 已知限制：`step_particles` 仅支持 **MODE_3D**（2D/CYL 抛 `ErrorUnimplemented`）；
+  且它目前只接受静态 `bfield`，与 RF 时变场的对接见 ROADMAP 时变场条目。
+- 另一处不对称：`ParticleStepper` **不更新 `ParticleStatistics`**
+  （边界碰撞/电流统计只由 `iterate_trajectories` 填充），
+  依赖 `get_statistics()` 的诊断代码在固定步长路径下拿不到数据。
+
+---
+
+## 7. 建议的下一步（按性价比）
 
 1. **R3 可视化**：openPMD/HDF5 输出 + VTK/XDMF 导出 + PyVista/ParaView 三维交互
    （HDF5 已就绪；这是用户原始三大需求中唯一尚未推进的一项）。
@@ -191,11 +263,11 @@ docs/                   ROADMAP / DEVELOPMENT / UPSTREAM_ARCHITECTURE / WORK_LOG
 
 ---
 
-## 7. 常用命令
+## 8. 常用命令
 
 ```bash
 ./reconf && ./configure && make -j12     # 构建（含 CUDA 自动探测）
-make check                               # 全部测试（当前 32/32）
+make check                               # 全部测试（当前 33/33）
 ./tests/cycl_poisson_bench 129 257       # 求解器规模扫描
 ./tests/cycl_poisson_bench --2d 1025     # 2D 模式
 ./tests/cycl_poisson_bench --cyl 513 257 # CYL 模式

@@ -704,6 +704,8 @@ for( size_t i = 0; i < 8; i++ ) {
 4. 最后才谈把 Boris/GPU 路径接入自洽循环——那是**物理模型选择**
    （GSL 自适应积分 vs Boris 固定步长），需先确认对离子源/低能束场景的适用性，
    不是纯性能问题。
+   → **已处理（§11.15）**：两条路径本就是 `ParticleDataBase` 上的两个公开入口，
+   「步长选择」已可用；缺的是验证与相对论支持，已补齐。
 
 ### 11.14 R1-③ 进展（自洽 PIC 循环：先测量，再动手）
 
@@ -736,3 +738,59 @@ for( size_t i = 0; i < 8; i++ ) {
   cyclotron 物理量不变）。
 - [x] 文档：新增 `docs/UPSTREAM_ARCHITECTURE.md`（上游结构总结）与
   `docs/WORK_LOG.md`（跨会话交接日志）。
+
+### 11.15 R1-④ 进展（步长选择：两条推进路径均可用）
+
+需求：把步长选择做成**可选参数**，保留两种方案的可行性。
+
+#### 查证结果：接口本来就有，缺的是验证
+
+`ParticleDataBase` 上**同时存在**两条推进路径：
+
+| 入口 | 步长 | 实现 | 改动前状态 |
+| --- | --- | --- | --- |
+| `iterate_trajectories(scharge, efield, bfield)` | GSL 自适应 | `ParticleIterator` | 18 处调用，**全部测试走这条** |
+| `step_particles(scharge, efield, bfield, dt)` | Boris 固定 `dt` | `ParticleStepper` | **零调用、零测试、零文档** |
+
+即「步长选择」在 API 层面**已是可选参数**；真正缺的是 (a) 验证、(b) 相对论支持、(c) 文档。
+
+#### 新增验证 `tests/cycl_stepper_modes.cpp`
+
+均匀 Bz 场、单粒子回旋运动（解析解），两条路径 × 两种束流 × 2 圈
+（固定步长取 `dt = T/1000`）：
+
+| 路径 | 束流 | 轨道误差 | 速率漂移 | $\gamma$ |
+| --- | --- | --- | --- | --- |
+| 自适应 | 非相对论 | 4.4e-5 | 4.4e-5 | 1.000000 |
+| 固定步长 | 非相对论 | 4.1e-5 | 4.9e-6 | 1.000000 |
+| 自适应 | $\gamma$=1.22 | 6.4e-5 | 2.0e-5 | 1.220012 |
+| 固定步长 | $\gamma$=1.22 | 6.2e-5 | 3.3e-6 | 1.220002 |
+
+**已知限制**（固定步长路径）：仅支持 `MODE_3D`（2D/CYL 抛 `ErrorUnimplemented`）；
+`bfield` 目前为静态场；**不更新 `ParticleStatistics`**
+（边界碰撞/电流统计只由 `iterate_trajectories` 填充）；轨迹点每步记录（`traj_size` = 步数）。
+
+#### 修复的缺口：固定步长路径原先无相对论
+
+`set_relativistic(true)` 对 `ParticleStepper` **完全无效**（无分支），
+回旋频率偏大 $\gamma$ 倍 → $\gamma$=1.22 时轨道误差 **1.61**（位置全错）。
+已补齐 $u=\gamma v$ 空间的 Boris 旋转（旋转向量含 $1/\gamma$ 因子），
+非相对论分支保持与原实现逐位一致。
+
+- [x] `src/particlestepper.hpp`：相对论分支 + `set_relativistic()`；
+- [x] `src/particledatabaseimp.hpp`：`step_particles()` 构造步进器时传入 `_relativistic`；
+- [x] `make check` = **33/33**。
+
+#### 选型建议（可直接照此选）
+
+| 场景 | 选 |
+| --- | --- |
+| 固定时间栅格 / 与 RF 周期同步 | `step_particles(dt)` |
+| 非 3D 网格（2D/CYL） | `iterate_trajectories()`（固定步长仅支持 MODE_3D） |
+| 一次性把轨道追到底，精度由自己的容差控制 | `iterate_trajectories()` |
+
+#### 教训
+
+- **先查证接口是否已存在，再设计新参数**——本次差点为已具备的能力另造一套；
+- **两个独立实现互相印证**：相对论旋转向量的 $1/\gamma$ 因子最初被漏掉，
+  是靠对照本项目已独立验证过的 `CBorisPusher` 才定位到的（详见 WORK_LOG §6.4）。
