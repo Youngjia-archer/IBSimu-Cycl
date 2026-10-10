@@ -123,6 +123,11 @@ python3 examples/cyclotron/plot_field_map.py       # -> docs/img/cyclotron_field
 - **Part B（真实场图，整体缩放）**：**闭合轨道起步**（`find_closed_orbit()`，见下一节）
   - 能量 `1.180 → 1.471 MeV`，**轨道半径 `3.295 → 3.541 m` 随能量外扩** ✓
   - 增益 **24.22 keV/圈**（设计 $2qV_0 = 40$ keV/圈；差值来自渡越因子与相位）
+- **Part C（等时性场设计）**：按 $\omega=q\langle B_z\rangle/(\gamma m)$ 取径向修正
+  $c(r)=\omega_0/\omega_{rev}(r)$，把中平面 $B_z$ 乘上 $c(r)$（保留方位角调制结构）
+  - 修正后各半径回转频率一致到 **0.4%**（原场在 $r\in[3.0,3.6]$ m 内差 **10%**）
+  - 相位滑移 **−0.246 → −0.0058 rad/圈（42×）**；增益 **24.2 → 39.9 keV/圈**（≈设计值 100%）
+  - 半径 `3.28 → 3.75 m` 持续外扩，不再有能量饱和
 
 ![cyclotron acceleration](docs/img/cyclotron_acceleration.png)
 
@@ -130,10 +135,11 @@ python3 examples/cyclotron/plot_field_map.py       # -> docs/img/cyclotron_field
 > 必须用两个**对径**间隙（dee 的两侧）才能让中心漂移相互抵消、轨道同心外扩——
 > 这与真实回旋加速器一致。
 >
-> **关于 Part B 的相位滑移**：整体缩放后的场在当前能量下**不满足等时性**
-> $\langle B_z\rangle(r)\not\propto\gamma(r)$，相位以 **−0.246 rad/圈** 滑移，
-> 第 10 圈后滑过加速相位、能量趋于饱和（图中平台段）。这是**真实的物理**
-> 而非数值问题：等时性场设计（场沿径向随 $\gamma$ 上升）是下一步工作，见 ROADMAP。
+> **关于相位滑移**：真实 PSI Ring 场图的 $\langle B_z\rangle(r)$ 在 3.3–3.6 m 内上升约 4%，
+> 这正好是该机器能量（$\gamma=1.227$）下等时性所需的斜率；而本演示的整体缩放模型里
+> $\gamma\approx1.001$，等时性只要求 $\langle B_z\rangle$ **近似不变**——同一个场形就
+> **过陡**了，于是相位以 −0.246 rad/圈 滑移、第 10 圈后能量趋于饱和。
+> 按 $c(r)=\omega_0/\omega_{rev}(r)$ 修正后相位即锁定（Part C）。
 > 早先版本用「在 $r=r_{ref}$ 处切向发射」的初值，那不是闭合轨道（见下一节），
 > 测得增益只有 9% 且半径随能量**减小**；现已由闭合轨道起步修正。
 > 相对论推进器见 F1；真实场强下已在 F1 实现（当年“超出非相对论范围”的限制已解除）。

@@ -49,6 +49,7 @@ struct ClosedOrbit {
     double vmag;         /*!< 速率 [m/s]（由 γ 定） */
     double rmin;         /*!< 一整圈内的最小半径 [m] */
     double rmax;         /*!< 一整圈内的最大半径 [m] */
+    double T_rev;        /*!< 一整圈的回转周期 [s]（用于等时性诊断 ω_rev=2π/T_rev） */
     double Bbar;         /*!< r_guess 处的方位平均 Bz [T]（诊断用） */
     int    iterations;   /*!< Newton 实际迭代次数 */
 };

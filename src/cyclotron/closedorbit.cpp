@@ -27,6 +27,11 @@ struct State {
 /*! \brief 由洛伦兹因子求速率。 */
 double v_of_gamma( double g )
 {
+    // γ
+    // ≤ 1 对应虚数速度；抛出可捕获的异常而不是返回 NaN（
+    // NaN 会进一步使场索引越界、段错误）。
+    if( !(g > 1.0) )
+	throw( std::runtime_error( "closedorbit: gamma must be > 1" ) );
     return( SPEED_C*std::sqrt( 1.0 - 1.0/(g*g) ) );
 }
 
@@ -51,7 +56,8 @@ void state_to_xv( double th0, double vmag, const State &s, Vec3D &x, Vec3D &v )
 State one_sector( const VectorField &B, const CBorisPusher &pusher,
 		  double th0, double vmag, double dt, const State &s0,
 		  double dtheta,
-		  double *rmin_out = 0, double *rmax_out = 0 )
+		  double *rmin_out = 0, double *rmax_out = 0,
+		  double *t_out = 0 )
 {
     Vec3D x, v;
     state_to_xv( th0, vmag, s0, x, v );
@@ -61,7 +67,10 @@ State one_sector( const VectorField &B, const CBorisPusher &pusher,
     double acc = 0.0, th_prev = th0;
     double rmin = s0.r, rmax = s0.r;
 
-    for( int n = 0; n < 400000; ++n ) {
+    // 400000 步＝约 1000 个扇区，对正常扇区积分（≈375 步）余量过大：
+    // 一旦某个试探态不闭合，单次调用会白烧几秒钟。真实扇区耗时最多不过
+    // 百倍量级，取 60000 步（≈160 个扇区）已足够宽松。
+    for( int n = 0; n < 60000; ++n ) {
 	Vec3D x_prev = x, v_prev = v;
 	pusher.step( 0, &B, x, v, dt );
 
@@ -90,8 +99,14 @@ State one_sector( const VectorField &B, const CBorisPusher &pusher,
 	    State out;
 	    out.r  = std::sqrt( xf[0]*xf[0] + xf[1]*xf[1] );
 	    out.vr = vf[0]*erf[0] + vf[1]*erf[1];
+	    // 安全网：场图对 NaN 坐标是不防御的（(int)NaN 会让索引越界），
+	    // 所以在这里就把非有限状态当作失败抛出。
+	    if( !std::isfinite(out.r) || !std::isfinite(out.vr) )
+		throw( std::runtime_error( "closedorbit: non-finite state" ) );
 	    if( rmin_out ) *rmin_out = rmin;
 	    if( rmax_out ) *rmax_out = rmax;
+	    // x_prev 在 n*dt、x 在 (n+1)*dt，插值点位于 (n+f)*dt（与上面的速度插值一致）
+	    if( t_out ) *t_out = ((double)n + f)*dt;
 	    return( out );
 	}
 	th_prev = th;
@@ -196,7 +211,8 @@ ClosedOrbit find_closed_orbit( const VectorField &B, double q, double m,
 	    if( xn.r > 0.1*r_guess && xn.r < 3.0*r_guess ) {
 		const State fn = one_sector( B, pusher, th0, vmag, dt, xn, DTHETA );
 		const double a = (fn.r - xn.r)/R0, b = (fn.vr - xn.vr)/V0;
-		if( std::sqrt( a*a + b*b ) < norm ) {
+		if( std::isfinite( a ) && std::isfinite( b )
+		    && std::sqrt( a*a + b*b ) < norm ) {
 		    improved = true;
 		    break;
 		}
@@ -208,9 +224,9 @@ ClosedOrbit find_closed_orbit( const VectorField &B, double q, double m,
 	x = xn;
     }
 
-    // ---- 3. 一整圈的形状 ----
-    double rmn = x.r, rmx = x.r;
-    one_sector( B, pusher, th0, vmag, dt, x, -2.0*M_PI, &rmn, &rmx );
+    // ---- 3. 一整圈的形状与周期 ----
+    double rmn = x.r, rmx = x.r, trev = 0.0;
+    one_sector( B, pusher, th0, vmag, dt, x, -2.0*M_PI, &rmn, &rmx, &trev );
 
     ClosedOrbit co;
     co.r = x.r;
@@ -218,6 +234,7 @@ ClosedOrbit find_closed_orbit( const VectorField &B, double q, double m,
     co.vmag = vmag;
     co.rmin = rmn;
     co.rmax = rmx;
+    co.T_rev = trev;
     co.Bbar = Bbar;
     co.iterations = iters;
     return( co );
