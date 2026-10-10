@@ -22,6 +22,7 @@ cycl_ringmap_SOURCES = cycl_ringmap.cpp
 cycl_ringfield3d_SOURCES = cycl_ringfield3d.cpp
 cycl_fieldmap3d_SOURCES = cycl_fieldmap3d.cpp
 cycl_track_SOURCES = cycl_track.cpp
+cycl_closed_orbit_SOURCES = cycl_closed_orbit.cpp
 cycl_rfgap_SOURCES = cycl_rfgap.cpp
 cycl_accel_SOURCES = cycl_accel.cpp
 cycl_relativistic_SOURCES = cycl_relativistic.cpp
@@ -58,6 +59,7 @@ cycl_ringmap \
 cycl_ringfield3d \
 cycl_fieldmap3d \
 cycl_track \
+cycl_closed_orbit \
 cycl_rfgap \
 cycl_accel \
 cycl_relativistic \
