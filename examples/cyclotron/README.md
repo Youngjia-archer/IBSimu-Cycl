@@ -16,10 +16,16 @@ P2/P3/P4 阶段再导入实际输入文件与场图。
 | `cyclotron2.in` | 加速轨道计算输入 | P4 跟踪 |
 | **`bfield.dat`** | **三维磁场图** | **P2 磁铁** |
 | `rffield1.dat` / `rffield2.dat` | RF 场图 | P3 RF 腔 |
-| `dist1.dat` / `dist2.dat` | 初始粒子分布 | P4 |
+| `dist1.dat` / `dist2.dat` | OPAL `DISTRIBUTION/FROMFILE` 初始坐标文件（**仅 2 / 1 个测试粒子**，非统计束流） | P4 |
 | `ic.dat` / `refsol.dat` | tune 计算初值与参考解 | 验证 |
 | `cyclotron1.gpl` / `cyclotron2.gpl` | gnuplot 绘图脚本 | P6 可视化 |
 | `plotTunes.py` | 调谐曲线分析（Python3） | P6 可视化 |
+
+> **注意（勿误读）**：`dist*.dat` 是 OPAL 输入卡 `DISTRIBUTION, TYPE=FROMFILE` 引用的
+> **初始相空间坐标文件**——名称中的“分布”是 OPAL 的文件类别，不代表统计规模。
+> 上游实际内容（已核对原始文件）：`dist1.dat` 含 **2 个粒子**（参考粒子 + 偏轴粒子，
+> 用于 betatron tune 计算），`dist2.dat` 含 **1 个粒子**（用于 `cyclotron2.in` 的
+> 190 圈单粒子跟踪）。二者均未导入本仓库，可从上游 `Manual-old` 获取。
 
 ### 绘图脚本（本项目新增，均在仓库根目录下运行）
 
