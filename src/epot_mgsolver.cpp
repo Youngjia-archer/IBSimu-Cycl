@@ -934,8 +934,12 @@ void EpotMGSolver::restrict_3d( MeshScalarField *out, const MeshScalarField *in,
 void EpotMGSolver::restrict_cyl( MeshScalarField *out, const MeshScalarField *in, bool defect )
 {
     // Go through internal nodes of rougher level (out)
+    // IBSimu-Cycl: 每个粗点只写一次、只读细层，可按 j 并行（后面的边界段保持串行）
     int32_t s = out->size(0)-1;
     int32_t t = out->size(1)-1;
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static) if(t >= 8)
+#endif
     for( int32_t j = 1; j < t; j++ ) {
         for( int32_t i = 1; i < s; i++ ) {
 
@@ -1048,8 +1052,12 @@ void EpotMGSolver::restrict_cyl( MeshScalarField *out, const MeshScalarField *in
 void EpotMGSolver::restrict_2d( MeshScalarField *out, const MeshScalarField *in, bool defect )
 {
     // Go through internal nodes of rougher level (out)
+    // IBSimu-Cycl: 每个粗点只写一次、只读细层，可按 j 并行（后面的边界段保持串行）
     int32_t s = out->size(0)-1;
     int32_t t = out->size(1)-1;
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static) if(t >= 8)
+#endif
     for( int32_t j = 1; j < t; j++ ) {
         for( int32_t i = 1; i < s; i++ ) {
 
@@ -1404,8 +1412,10 @@ void EpotMGSolver::correct( const Geometry *geom, MeshScalarField *sol, const Me
     int32_t s = geom->size(0);
     int32_t t = geom->size(1);
     int32_t u = geom->size(2);
+    // IBSimu-Cycl: 2D/CYL 模式下 size(2)==1，因此折叠 (k,j) 两层以保证三种模式
+    // 都能并行；每点只写一次、只读 corr，结果与串行逐位一致。
 #ifdef _OPENMP
-#pragma omp parallel for schedule(static) if(u >= 8)
+#pragma omp parallel for schedule(static) collapse(2) if((long)u*(long)t >= 64)
 #endif
     for( int32_t k = 0; k < u; k++ ) {
 	for( int32_t j = 0; j < t; j++ ) {

@@ -73,41 +73,15 @@ static double max_abs_phi( const MeshScalarField &epot, const Geometry &g )
 
 static bool g_sharp = false;   /*!< \brief 是否用阶跃（陡边界）源。 */
 
-static void bench( int size )
+/*! \brief 对已装配好的几何跑两种求解器并报告耗时与内存。 */
+static void solve_and_report( Geometry &g, MeshScalarField &scharge,
+                              const char *title, double nodes )
 {
-    const double L = 1.0;                    // 立方腔边长 [m]
-    const double h = L/(double)(size-1);
+    EpotField epot( g );
 
-    Geometry g( MODE_3D, Int3D(size,size,size), Vec3D(0,0,0), h );
-    for( int b = 1; b <= 6; ++b )
-        g.set_boundary( b, Bound(BOUND_DIRICHLET, 0.0) );
-    g.build_mesh();
-
-    EpotField       epot( g );
-    MeshScalarField scharge( g );
-
-    // 电荷分布：高斯团（光滑）或阶跃球（陡边界，考验求解器）
-    const double qmax  = 1.0e-4;             // C/m^3
-    const double sigma = 0.1;
-    for( uint32_t i = 0; i < g.size(0); ++i ) {
-        double x = i*g.h() - 0.5;
-        for( uint32_t j = 0; j < g.size(1); ++j ) {
-            double y = j*g.h() - 0.5;
-            for( uint32_t k = 0; k < g.size(2); ++k ) {
-                double z = k*g.h() - 0.5;
-                double r2 = x*x + y*y + z*z;
-                if( g_sharp )
-                    scharge(i,j,k) = ( r2 < 0.25*0.25 ? qmax : 0.0 );
-                else
-                    scharge(i,j,k) = qmax*exp( -r2/(2.0*sigma*sigma) );
-            }
-        }
-    }
-
-    const double nodes = (double)size*(double)size*(double)size;
-    printf( "\n=== %d^3 = %.2f M nodes   h = %.4g m   source=%s ===\n",
-            size, nodes/1.0e6, h, g_sharp ? "step" : "gaussian" );
-    printf( "  baseline RSS: %.0f MB\n", peak_rss_mb() );
+    printf( "\n=== %s ===\n", title );
+    printf( "  nodes = %.2f M   baseline RSS = %.0f MB   source = %s\n",
+            nodes/1.0e6, peak_rss_mb(), g_sharp ? "step" : "gaussian" );
 
     // ---- 几何多重网格 ----
     {
@@ -143,20 +117,121 @@ static void bench( int size )
     }
 }
 
+/*! \brief 3D 立方腔（六面 Dirichlet 接地）。 */
+static void bench_3d( int size )
+{
+    const double h = 1.0/(double)(size-1);
+    Geometry g( MODE_3D, Int3D(size,size,size), Vec3D(0,0,0), h );
+    for( int b = 1; b <= 6; ++b )
+        g.set_boundary( b, Bound(BOUND_DIRICHLET, 0.0) );
+    g.build_mesh();
+
+    MeshScalarField scharge( g );
+    const double qmax = 1.0e-4, sigma = 0.1;
+    for( uint32_t i = 0; i < g.size(0); ++i ) {
+        double x = i*g.h() - 0.5;
+        for( uint32_t j = 0; j < g.size(1); ++j ) {
+            double y = j*g.h() - 0.5;
+            for( uint32_t k = 0; k < g.size(2); ++k ) {
+                double z = k*g.h() - 0.5;
+                double r2 = x*x + y*y + z*z;
+                if( g_sharp )
+                    scharge(i,j,k) = ( r2 < 0.25*0.25 ? qmax : 0.0 );
+                else
+                    scharge(i,j,k) = qmax*exp( -r2/(2.0*sigma*sigma) );
+            }
+        }
+    }
+
+    char title[128];
+    snprintf( title, sizeof(title), "3D %d^3   h = %.4g m", size, h );
+    solve_and_report( g, scharge, title, (double)size*(double)size*(double)size );
+}
+
+/*! \brief 2D 方形腔（MODE_2D，四边 Dirichlet 接地）。 */
+static void bench_2d( int size )
+{
+    const double h = 1.0/(double)(size-1);
+    Geometry g( MODE_2D, Int3D(size,size,1), Vec3D(0,0,0), h );
+    for( int b = 1; b <= 4; ++b )
+        g.set_boundary( b, Bound(BOUND_DIRICHLET, 0.0) );
+    g.build_mesh();
+
+    MeshScalarField scharge( g );
+    const double qmax = 1.0e-4, sigma = 0.1;
+    for( uint32_t i = 0; i < g.size(0); ++i ) {
+        double x = i*g.h() - 0.5;
+        for( uint32_t j = 0; j < g.size(1); ++j ) {
+            double y = j*g.h() - 0.5;
+            double r2 = x*x + y*y;
+            if( g_sharp )
+                scharge(i,j,0) = ( r2 < 0.0625 ? qmax : 0.0 );
+            else
+                scharge(i,j,0) = qmax*exp( -r2/(2.0*sigma*sigma) );
+        }
+    }
+
+    char title[128];
+    snprintf( title, sizeof(title), "2D %dx%d   h = %.4g m", size, size, h );
+    solve_and_report( g, scharge, title, (double)size*(double)size );
+}
+
+/*! \brief 柱坐标腔（MODE_CYL，i=z, j=r，轴在 r=0）。 */
+static void bench_cyl( int nz, int nr )
+{
+    const double h = 1.0/(double)(nr-1);
+    Geometry g( MODE_CYL, Int3D((uint32_t)nz,(uint32_t)nr,1), Vec3D(0,0,0), h );
+    g.set_boundary( 1, Bound(BOUND_NEUMANN,   0.0) );   // zmin
+    g.set_boundary( 2, Bound(BOUND_NEUMANN,   0.0) );   // zmax
+    g.set_boundary( 3, Bound(BOUND_NEUMANN,   0.0) );   // 轴 r=0（对称）
+    g.set_boundary( 4, Bound(BOUND_DIRICHLET, 0.0) );   // rmax
+    g.build_mesh();
+
+    MeshScalarField scharge( g );
+    const double qmax = 1.0e-4, sig = 0.1;
+    double zc = 0.5*(double)(nz-1)*g.h();
+    for( uint32_t i = 0; i < g.size(0); ++i ) {
+        double z = i*g.h() - zc;
+        for( uint32_t j = 0; j < g.size(1); ++j ) {
+            double r = j*g.h();
+            double r2 = z*z + r*r;
+            if( g_sharp )
+                scharge(i,j,0) = ( r2 < 0.0625 ? qmax : 0.0 );
+            else
+                scharge(i,j,0) = qmax*exp( -r2/(2.0*sig*sig) );
+        }
+    }
+
+    char title[128];
+    snprintf( title, sizeof(title), "CYL %dx%d (z x r)   h = %.4g m", nz, nr, h );
+    solve_and_report( g, scharge, title, (double)nz*(double)nr );
+}
+
 int main( int argc, char **argv )
 {
-    vector<int> sizes;
+    vector<int> nums;
+    int mode = 3;
     for( int a = 1; a < argc; ++a ) {
-        if( string(argv[a]) == "--sharp" )
-            g_sharp = true;
-        else
-            sizes.push_back( atoi( argv[a] ) );
+        string s( argv[a] );
+        if( s == "--sharp" )         g_sharp = true;
+        else if( s == "--2d" )       mode = 2;
+        else if( s == "--cyl" )      mode = 1;
+        else                         nums.push_back( atoi( argv[a] ) );
     }
-    if( sizes.empty() )
-        sizes.push_back( 65 );               // CI 友好的默认值
 
-    for( size_t i = 0; i < sizes.size(); ++i )
-        bench( sizes[i] );
+    if( mode == 1 ) {
+        int nz = nums.size() > 0 ? nums[0] : 65;
+        int nr = nums.size() > 1 ? nums[1] : 65;
+        bench_cyl( nz, nr );
+    } else if( mode == 2 ) {
+        if( nums.empty() ) nums.push_back( 129 );
+        for( size_t i = 0; i < nums.size(); ++i )
+            bench_2d( nums[i] );
+    } else {
+        if( nums.empty() ) nums.push_back( 65 );   // CI 友好的默认值
+        for( size_t i = 0; i < nums.size(); ++i )
+            bench_3d( nums[i] );
+    }
 
     printf( "\nbenchmark complete\n" );
     return( 0 );

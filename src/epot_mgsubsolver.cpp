@@ -748,9 +748,14 @@ double EpotMGSubSolver::gs_process_neumann_2d( uint32_t a, uint32_t dj, uint8_t 
 double EpotMGSubSolver::rbgs_loop_2d( void ) const
 {
     // Go through all nodes once using Red-Black ordering
+    // IBSimu-Cycl: 同色遍历内 5 点模板只读相反颜色，可按 j 整体并行（串行逐位一致）
     double res = 0.0;
+    int    err_seen = 0;
     for( uint32_t rb = 0; rb < 2; rb++ ) {
 	const uint32_t dj = _geom.size(0);
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static) reduction(+:res) reduction(||:err_seen) if(_geom.size(1) >= 8)
+#endif
 	for( uint32_t j = 0; j < _geom.size(1); j++ ) {
 	    
 	    // Odd first, even second
@@ -783,15 +788,24 @@ double EpotMGSubSolver::rbgs_loop_2d( void ) const
 		(*_epot)(a) = Vnew;
 		double dx = Vnew - Vold;
 		res += dx*dx;
-		if( comp_isinf(dx) ) {
-		    throw( Error( ERROR_LOCATION, "Potential inf at location = (" + to_string(i) + 
-				  ", " + to_string(j) + ")" ) );
-		} else if( comp_isnan(dx) ) {
-		    throw( Error( ERROR_LOCATION, "Potential NaN at location = (" + to_string(i) + 
-				  ", " + to_string(j) + ")" ) );
-		}
+		if( comp_isinf(dx) || comp_isnan(dx) )
+		    err_seen = 1;   // 并行区内不能抛异常，循环结束后统一处理
 	    }
 	}
+    }
+
+    if( err_seen ) {
+	// 出错时才做一次串行扫描定位（正常路径零额外开销）
+	for( uint32_t j = 0; j < _geom.size(1); j++ )
+	    for( uint32_t i = 0; i < _geom.size(0); i++ ) {
+		double v = (*_epot)( (int32_t)(j*_geom.size(0) + i) );
+		if( comp_isinf(v) || comp_isnan(v) )
+		    throw( Error( ERROR_LOCATION, "Potential "
+				  + std::string(comp_isinf(v) ? "inf" : "NaN")
+				  + " at location = (" + to_string(i) + ", "
+				  + to_string(j) + ")" ) );
+	    }
+	throw( Error( ERROR_LOCATION, "Potential inf/NaN in 2D relaxation" ) );
     }
 
     return( 4.0*sqrt(res) );
@@ -1009,7 +1023,11 @@ double EpotMGSubSolver::defect_neumann_2d( uint32_t a, uint32_t dj, uint8_t bind
 void EpotMGSubSolver::defect_2d( void ) const
 {
     // Go through all nodes
+    // IBSimu-Cycl: 每点只写一次、只读 epot/rhs，可按 j 并行
     const uint32_t dj = _geom.size(0);
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static) if(_geom.size(1) >= 8)
+#endif
     for( uint32_t j = 0; j < _geom.size(1); j++ ) {
 	for( uint32_t i = 0; i < _geom.size(0); i++ ) {
 
@@ -1186,8 +1204,14 @@ double EpotMGSubSolver::rbgs_loop_cyl( void ) const
     const uint32_t dj = _geom.size(0);
 
     // Go through all nodes once using Red-Black ordering
+    // IBSimu-Cycl: 轴（j=0）与一般节点的模板都只读相反颜色（±1 在 i 或 j），
+    // 无自读、无同色读，因此可按 j 整体并行（串行逐位一致）
     double res = 0.0;
+    int    err_seen = 0;
     for( uint32_t rb = 0; rb < 2; rb++ ) {
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static) reduction(+:res) reduction(||:err_seen) if(_geom.size(1) >= 8)
+#endif
 	for( uint32_t j = 0; j < _geom.size(1); j++ ) {
 	    
 	    // Odd first, even second
@@ -1220,15 +1244,24 @@ double EpotMGSubSolver::rbgs_loop_cyl( void ) const
 		(*_epot)(a) = Vnew;
 		double dx = Vnew - Vold;
 		res += dx*dx;
-		if( comp_isinf(dx) ) {
-		    throw( Error( ERROR_LOCATION, "Potential inf at location = (" + to_string(i) + 
-				  ", " + to_string(j) + ")" ) );
-		} else if( comp_isnan(dx) ) {
-		    throw( Error( ERROR_LOCATION, "Potential NaN at location = (" + to_string(i) + 
-				  ", " + to_string(j) + ")" ) );
-		}
+		if( comp_isinf(dx) || comp_isnan(dx) )
+		    err_seen = 1;   // 并行区内不能抛异常，循环结束后统一处理
 	    }
 	}
+    }
+
+    if( err_seen ) {
+	// 出错时才做一次串行扫描定位（正常路径零额外开销）
+	for( uint32_t j = 0; j < _geom.size(1); j++ )
+	    for( uint32_t i = 0; i < _geom.size(0); i++ ) {
+		double v = (*_epot)( (int32_t)(j*dj + i) );
+		if( comp_isinf(v) || comp_isnan(v) )
+		    throw( Error( ERROR_LOCATION, "Potential "
+				  + std::string(comp_isinf(v) ? "inf" : "NaN")
+				  + " at location = (" + to_string(i) + ", "
+				  + to_string(j) + ")" ) );
+	    }
+	throw( Error( ERROR_LOCATION, "Potential inf/NaN in CYL relaxation" ) );
     }
 
     return( 4.0*sqrt(res) );
@@ -1451,7 +1484,11 @@ double EpotMGSubSolver::defect_neumann_cyl( uint32_t i, uint32_t j, uint8_t bind
 void EpotMGSubSolver::defect_cyl( void ) const
 {
     // Go through all nodes
+    // IBSimu-Cycl: 每点只写一次、只读 epot/rhs，可按 j 并行
     const uint32_t dj = _geom.size(0);
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static) if(_geom.size(1) >= 8)
+#endif
     for( uint32_t j = 0; j < _geom.size(1); j++ ) {
 	for( uint32_t i = 0; i < _geom.size(0); i++ ) {
 
